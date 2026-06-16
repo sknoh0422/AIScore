@@ -1,0 +1,24 @@
+# 런타임 산출물 — 사용자 자산, 절대 커밋 금지 (절대 규칙 D13)
+/data/
+
+# 모델 가중치 / 대용량 오디오
+*.wav
+*.ckpt
+*.pt
+*.pth
+*.onnx
+*.safetensors
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.ipynb_checkpoints/
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+
+# OS
+.DS_Store

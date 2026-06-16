@@ -1,0 +1,33 @@
+markdown_content = """# 🎵 AI 기반 찬송가 악보 서비스 프로젝트 로드맵
+
+본 프로젝트는 4성부 찬송가 악보(SATB) 이미지를 입력받아, 이를 디지털 데이터로 변환하고 AI 가창 합성 엔진을 통해 4성부 합창 음원을 생성하는 웹 기반 크로스 플랫폼 서비스입니다.
+
+---
+
+## 🎯 1. 프로젝트 개요 및 핵심 목표
+* **목적**: 사용자가 업로드한 찬송가 악보를 이해하고, 각 성부별 AI 목소리를 합성하여 최종 합창 결과물 제공.
+* **타겟 플랫폼**: Web (Mac, Windows, iOS, Android 브라우저 대응).
+* **핵심 과제**: 4성부(밀집형 SATB) 악보의 고정밀 인식 및 가사-음표 매핑 최적화.
+
+---
+
+## 🏗️ 2. 시스템 아키텍처 (Web Stack)
+
+### 🖥️ Frontend (Client)
+* **Framework**: Next.js (React 기반, 모바일 반응형 UI/UX 지원)
+* **Sheet Music Renderer**: **OpenSheetMusicDisplay (OSMD)** 또는 **VexFlow**
+  * 역할: 백엔드에서 생성된 MusicXML 데이터를 브라우저에 시각적으로 렌더링하고 사용자가 수정할 수 있는 에디터 인터페이스 제공.
+
+### ⚙️ Backend (AI & API Server)
+* **Framework**: FastAPI (Python 기반, 비동기 처리 및 PyTorch 모델 서빙 최적화)
+* **Environment**: Miniconda 가상환경 (`python=3.10`, 가상환경 이름: `aiscore`)
+* **Hardware Target**: Apple Silicon (Mac Studio) GPU 가속 활용 (`MPS` 백엔드 대응)
+
+---
+
+## 🛠️ 3. 모듈별 상세 설계 및 기술 스택
+
+```text
+[악보 이미지] ➔ 1. OMR Engine (Audiveris) ➔ [MusicXML] ➔ 2. Data Processing (Music21)
+                                                                    ↓ (멜로디/가사 분리)
+[최종 합창 음원] ⬅ 4. Audio Mixing ⬅ [성부별 WAV] ⬅ 3. AI SVS Engine (Hugging Face)
