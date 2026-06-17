@@ -28,7 +28,11 @@
 - **GitHub push** — `main`을 origin에 푸시(데스크탑 앱 또는 인증된 터미널).
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
-- **★ OMR 엔진 교체: Audiveris 어댑터 (진행 중, 후보 조사 완료·채택)** — oemer가 SATB(`315.JPG`)에서 크래시 → `stages/omr/audiveris_adapter.py` 구현(Java/JVM 필요, OmrPort). 함께 파서를 **staff×voice** 기준으로, 오케스트레이터를 **OMR 실패·N성부**에 견고하게 보강. SMT++는 백로그.
+- **★ OMR 엔진 교체: Audiveris 어댑터 (실측 검증 완료 → 구현 예정)** — 빌드·배치·315.JPG(업스케일) 성공 확인. 구현 범위:
+  - (a) **이미지 전처리** 단계/유틸 — 저해상도 업스케일·DPI 정규화(필수, 모든 OMR 실패의 근본 원인 해결).
+  - (b) `stages/omr/audiveris_adapter.py` — Audiveris 배치 CLI 래퍼(OmrPort), JDK25 경로/배포본 경로 config화.
+  - (c) **파서 보강** — `part×voice → S/A/T/B` 매핑(2-part grand-staff 구조), N성부·OMR실패 견고화.
+  - SMT++는 백로그.
 - **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
@@ -63,6 +67,13 @@
   - 상용(PlayScore/SmartScore/PhotoScore 등) = **공개 API 없음 + 사용자 악보 외부 전송(규칙 D16 위배)** → 자동 백엔드 부적합. VLM(Gemini/GPT-4o) = 정확도 미성숙 + 외부전송 → 비권장.
 - 핵심 통찰: SATB 다성부 분리는 OMR 본질적 난제(상용도 약함) → **교정 에디터 필수**. 파서를 Part 단위가 아니라 **staff×voice** 기준으로 보강 필요.
 - 다음: Audiveris 설치 가능성(Java/JVM) 확인 → 315.JPG 실측 → `audiveris_adapter` spec→plan→TDD.
+
+### 2026-06-17 (Audiveris 빌드·실측 — 핵심 발견)
+- JDK 25(`brew openjdk@25`) + **Audiveris 5.10.2 소스 빌드 성공**. (JDK 26은 Gradle 9.1 미지원 `class major 70` → 25 사용)
+- 315.JPG **원본(500×777)** → Audiveris도 PAGE 실패. **근본 원인 = 저해상도**(interline 6px, "too low ... try 300 DPI"). **oemer 크래시도 동일 원인**.
+- **3× 업스케일(LANCZOS) → Audiveris 성공**: score-part **2**(트레블 S/A + 베이스 T/B), clef **G+F**, 8 보표, 12 마디, 가사~0. SlursBuilder NPE 경고 있으나 비치명적(.mxl 정상 export).
+- 결론: ① **OMR 전처리(업스케일/DPI 정규화)가 필수 단계** ② SATB는 **2-part grand-staff(클레프별)** 인코딩 → 파서를 `part×voice → S/A/T/B` 매핑으로 보강 ③ **Audiveris 어댑터 진행 타당**(설치/빌드/배치 검증 완료).
+- 빌드 산출물(로컬, 미커밋): `/tmp/audiveris/app/build/distributions/app-5.10.2` (배치: `bin/Audiveris -batch -transcribe -export -output <dir> <img>`, JDK25 JAVA_HOME 필요).
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 
