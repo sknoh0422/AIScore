@@ -24,11 +24,11 @@
   - 구현: OMR(oemer)·파싱(music21)·SVS(VowelSynth)·믹싱 어댑터 + 오케스트레이터(4성부 병렬) + FastAPI 잡 API
 
 ## ⏳ 대기 / 검증 필요
-- **oemer 통합 스모크(수동)** — 실제 악보 인식 품질 미검증(설계 §2 "가장 약한 고리").
-  실행: `cd backend && PATH=/opt/miniconda3/envs/aiscore/bin:$PATH PYTHONPATH=. /opt/miniconda3/envs/aiscore/bin/python -m pytest -v -m integration`
+- **OMR 실측 검증 완료 (2026-06-17)** — `온맘다해.png`(단성부) oemer 정상 ✅ / `315.JPG`(밀집형 SATB) **oemer 크래시**(`assert track_nums == 2` → 검출 3) ❌. 결론: 실제 SATB엔 oemer 부적합 → **Audiveris 필요**.
 - **GitHub push** — `main`을 origin에 푸시(데스크탑 앱 또는 인증된 터미널).
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
+- **★ OMR 엔진 교체: Audiveris 어댑터** (실측으로 우선순위 상승) — oemer가 SATB(`315.JPG`)에서 크래시 → `stages/omr/audiveris_adapter.py` 구현(Java/JVM 필요, OmrPort). 함께 파서/오케스트레이터를 **OMR 실패·N성부**에 견고하게 보강.
 - **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
@@ -51,6 +51,10 @@
 - **최종 코드 리뷰** → 크리티컬 2건 수정: ① `to_midi` music21 플랫 표기(`B-4`) 처리 ② 잡 상태 실행 중 가시화(on_update 콜백).
 - `feat/stage1-vowel-choir` → **`main` squash 머지** — 커밋 `1722cb6`, 단위 테스트 **16 passed**(통합 1 deselected).
 - **ROADMAP.md** 추가(단일 진입점) + 날짜별 이력 정리.
+
+### 2026-06-17 (OMR 실측 검증)
+- 샘플 OMR 검증: `온맘다해.png`(단성부) → oemer **정상**. `315.JPG`(밀집형 SATB) → oemer **크래시**(`build_system.align_symbols: assert track_nums == 2`, 검출 3), MusicXML 미생성.
+- 결론: oemer는 2-track 가정이라 밀집형 SATB 부적합 → **Audiveris 어댑터로 전환 필요**(설계가 자리만 잡아둔 교체점). 파이프라인은 OMR 실패를 `failed`로 정상 표면화 확인.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 
