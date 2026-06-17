@@ -2,6 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from music21 import converter, stream, note as m21note
+from app.core.errors import ParseError
 from app.domain.score import Score, Voice, Note, VoiceName
 
 _ORDER = [VoiceName.SOPRANO, VoiceName.ALTO, VoiceName.TENOR, VoiceName.BASS]
@@ -28,6 +29,8 @@ class Music21Parser:
             ns = _notes_from(part.recurse().notesAndRests)
             if ns:
                 lines.append(ns)
+        if not lines:
+            raise ParseError(f"파싱 결과 음표 없음: {musicxml_path}")
         voices_map: dict[VoiceName, Voice] = {}
         for vn, notes in zip(_ORDER, lines):
             voices_map[vn] = Voice(name=vn, notes=notes)

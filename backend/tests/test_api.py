@@ -1,4 +1,5 @@
 import io
+import app.api.routes.jobs as jobs_module
 from PIL import Image
 from fastapi.testclient import TestClient
 from app.main import app
@@ -19,3 +20,14 @@ def test_rejects_non_image():
     client = TestClient(app)
     r = client.post("/jobs", files={"file": ("x.png", b"notanimage", "image/png")})
     assert r.status_code == 400
+
+def test_rejects_oversized_file():
+    """_MAX_BYTES 초과 파일 → 413."""
+    orig = jobs_module._MAX_BYTES
+    jobs_module._MAX_BYTES = 10
+    try:
+        client = TestClient(app)
+        r = client.post("/jobs", files={"file": ("big.png", b"x" * 11, "image/png")})
+        assert r.status_code == 413
+    finally:
+        jobs_module._MAX_BYTES = orig

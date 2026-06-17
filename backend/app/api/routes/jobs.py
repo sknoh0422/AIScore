@@ -28,7 +28,7 @@ def _run(job_id: str, image_path: Path, work_dir: Path) -> None:
 async def create_job(background: BackgroundTasks, file: UploadFile = File(...)) -> JobCreated:
     if file.content_type not in _ALLOWED_TYPES:
         raise HTTPException(415, f"지원하지 않는 형식: {file.content_type}")
-    data = await file.read()
+    data = await file.read(_MAX_BYTES + 1)
     if len(data) > _MAX_BYTES:
         raise HTTPException(413, "파일 크기 초과 (최대 20MB)")
     try:

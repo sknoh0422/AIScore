@@ -4,11 +4,16 @@ from pathlib import Path
 import numpy as np
 import soundfile as sf
 
+def _to_mono(a: np.ndarray) -> np.ndarray:
+    return a.mean(axis=1) if a.ndim == 2 else a
+
 class Mixer:
     def mix(self, voice_wavs: list[Path], out_path: Path) -> Path:
-        arrays = [sf.read(p)[0].astype(np.float32) for p in voice_wavs]
-        if not arrays:
+        reads = [sf.read(p) for p in voice_wavs]
+        if not reads:
             raise ValueError("mix: 빈 입력")
+        arrays = [_to_mono(data.astype(np.float32)) for data, _ in reads]
+        sr = reads[0][1]
         length = max(len(a) for a in arrays)
         acc = np.zeros(length, dtype=np.float32)
         for a in arrays:
@@ -16,5 +21,5 @@ class Mixer:
         peak = float(abs(acc).max())
         if peak > 1.0:
             acc /= peak
-        sf.write(out_path, acc, 44_100)
+        sf.write(out_path, acc, sr)
         return out_path

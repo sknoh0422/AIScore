@@ -1,3 +1,4 @@
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+addopts = "-m 'not integration'"
 markers = ["integration: 느린 외부 의존 테스트 (oemer, e2e)"]
