@@ -37,6 +37,25 @@
 
 ---
 
+## 진행 이력 (날짜별)
+
+### 2026-06-16
+- 프로젝트 **브레인스토밍 → 설계 확정**: 제품 정의, 1/2단계 로드맵, 트랙B(오프라인 OCR 학습), 기술 타당성(가사는 OMR 분리, 모음"우" 우회) 결정.
+- **설계 문서** 작성: `docs/superpowers/specs/2026-06-16-aiscore-design.md`.
+- **CLAUDE.md**(헌법) 작성 + **빈 스캐폴딩** 생성(backend/frontend/training, 동결된 `ports.py`) — 커밋 `27733e8`.
+- **1단계 구현 계획**(TDD 9태스크) 작성 — 커밋 `012612c`.
+- GitHub 레포 연결: `sknoh0422/AIScore`.
+
+### 2026-06-16 ~ 06-17
+- **1단계 파이프라인 구현**(서브에이전트 주도 TDD, 8태스크): `to_midi`/하니스 → VowelSynth("우") → Mixer → Music21Parser → OemerAdapter → Job → Stage1Orchestrator(4성부 병렬) → FastAPI 잡 API.
+- **최종 코드 리뷰** → 크리티컬 2건 수정: ① `to_midi` music21 플랫 표기(`B-4`) 처리 ② 잡 상태 실행 중 가시화(on_update 콜백).
+- `feat/stage1-vowel-choir` → **`main` squash 머지** — 커밋 `1722cb6`, 단위 테스트 **16 passed**(통합 1 deselected).
+- **ROADMAP.md** 추가(단일 진입점) + 날짜별 이력 정리.
+
+> 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
+
+---
+
 ## 단계 정의 (요약)
 ```
 1단계: 음표 → 모음 "우" → 믹싱            ← 완료
