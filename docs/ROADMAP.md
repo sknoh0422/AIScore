@@ -28,7 +28,7 @@
 - **GitHub push** — `main`을 origin에 푸시(데스크탑 앱 또는 인증된 터미널).
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
-- **★ OMR 엔진 교체: Audiveris 어댑터** (실측으로 우선순위 상승) — oemer가 SATB(`315.JPG`)에서 크래시 → `stages/omr/audiveris_adapter.py` 구현(Java/JVM 필요, OmrPort). 함께 파서/오케스트레이터를 **OMR 실패·N성부**에 견고하게 보강.
+- **★ OMR 엔진 교체: Audiveris 어댑터 (진행 중, 후보 조사 완료·채택)** — oemer가 SATB(`315.JPG`)에서 크래시 → `stages/omr/audiveris_adapter.py` 구현(Java/JVM 필요, OmrPort). 함께 파서를 **staff×voice** 기준으로, 오케스트레이터를 **OMR 실패·N성부**에 견고하게 보강. SMT++는 백로그.
 - **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
@@ -55,6 +55,14 @@
 ### 2026-06-17 (OMR 실측 검증)
 - 샘플 OMR 검증: `온맘다해.png`(단성부) → oemer **정상**. `315.JPG`(밀집형 SATB) → oemer **크래시**(`build_system.align_symbols: assert track_nums == 2`, 검출 3), MusicXML 미생성.
 - 결론: oemer는 2-track 가정이라 밀집형 SATB 부적합 → **Audiveris 어댑터로 전환 필요**(설계가 자리만 잡아둔 교체점). 파이프라인은 OMR 실패를 `failed`로 정상 표면화 확인.
+
+### 2026-06-17 (OMR 후보 조사 → Audiveris 결정)
+- 후보 비교(통합 가능성·로컬/프라이버시·SATB·MusicXML 기준):
+  - **Audiveris**(OSS/Java, CLI 서버통합, 로컬, MusicXML, 교정 가능) → **채택**. 단 T/B 베이스보표 공유 시 "3성부+피아노" 오인식 한계 있음(교정 에디터로 보완).
+  - oemer = 단성부 전용으로 강등. **SMT/SMT++**(트랜스포머, 폴리포닉) = 장기 고천장 백로그.
+  - 상용(PlayScore/SmartScore/PhotoScore 등) = **공개 API 없음 + 사용자 악보 외부 전송(규칙 D16 위배)** → 자동 백엔드 부적합. VLM(Gemini/GPT-4o) = 정확도 미성숙 + 외부전송 → 비권장.
+- 핵심 통찰: SATB 다성부 분리는 OMR 본질적 난제(상용도 약함) → **교정 에디터 필수**. 파서를 Part 단위가 아니라 **staff×voice** 기준으로 보강 필요.
+- 다음: Audiveris 설치 가능성(Java/JVM) 확인 → 315.JPG 실측 → `audiveris_adapter` spec→plan→TDD.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 
