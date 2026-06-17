@@ -2,6 +2,7 @@
 
 > 이 파일은 Claude Code가 매 세션 로드하는 운영 규약이다.
 > 상세 설계는 [설계 문서](docs/superpowers/specs/2026-06-16-aiscore-design.md) 참조.
+> **이어서 작업하려면:** 현재 상태/다음 작업은 [docs/ROADMAP.md](docs/ROADMAP.md) 를 먼저 본다.
 
 ## 1. 프로젝트 요약
 
