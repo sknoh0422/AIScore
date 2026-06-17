@@ -22,17 +22,15 @@
 - **1단계 파이프라인 (image→OMR→SATB→모음"우"→믹싱)** — main 통합 완료, 단위 테스트 16 passed
   - 계획: [1단계 계획](superpowers/plans/2026-06-16-stage1-vowel-choir.md)
   - 구현: OMR(oemer)·파싱(music21)·SVS(VowelSynth)·믹싱 어댑터 + 오케스트레이터(4성부 병렬) + FastAPI 잡 API
+- **Audiveris OMR 스테이지 (image→Audiveris→N성부)** — main 통합 완료, 단위 24 passed + E2E(315.JPG→choir.wav 18s) 검증
+  - 계획: [Audiveris 계획](superpowers/plans/2026-06-17-audiveris-omr.md)
+  - 구현: 전처리(업스케일) + `audiveris_adapter`(JDK25 배치) + `part×voice` 무손실 파서 + 존재 성부만 합성 + 업로드 검증. 실제 SATB는 트레블/베이스 2성부 가이드(완전 4성부는 교정 영역).
 
 ## ⏳ 대기 / 검증 필요
 - **OMR 실측 검증 완료 (2026-06-17)** — `온맘다해.png`(단성부) oemer 정상 ✅ / `315.JPG`(밀집형 SATB) **oemer 크래시**(`assert track_nums == 2` → 검출 3) ❌. 결론: 실제 SATB엔 oemer 부적합 → **Audiveris 필요**.
 - **GitHub push** — `main`을 origin에 푸시(데스크탑 앱 또는 인증된 터미널).
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
-- **★ OMR 엔진 교체: Audiveris 어댑터 (실측 검증 완료 → 구현 예정)** — 빌드·배치·315.JPG(업스케일) 성공 확인. 구현 범위:
-  - (a) **이미지 전처리** 단계/유틸 — 저해상도 업스케일·DPI 정규화(필수, 모든 OMR 실패의 근본 원인 해결).
-  - (b) `stages/omr/audiveris_adapter.py` — Audiveris 배치 CLI 래퍼(OmrPort), JDK25 경로/배포본 경로 config화.
-  - (c) **파서 보강** — `part×voice → S/A/T/B` 매핑(2-part grand-staff 구조), N성부·OMR실패 견고화.
-  - SMT++는 백로그.
 - **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
@@ -74,6 +72,13 @@
 - **3× 업스케일(LANCZOS) → Audiveris 성공**: score-part **2**(트레블 S/A + 베이스 T/B), clef **G+F**, 8 보표, 12 마디, 가사~0. SlursBuilder NPE 경고 있으나 비치명적(.mxl 정상 export).
 - 결론: ① **OMR 전처리(업스케일/DPI 정규화)가 필수 단계** ② SATB는 **2-part grand-staff(클레프별)** 인코딩 → 파서를 `part×voice → S/A/T/B` 매핑으로 보강 ③ **Audiveris 어댑터 진행 타당**(설치/빌드/배치 검증 완료).
 - 빌드 산출물(로컬, 미커밋): `/tmp/audiveris/app/build/distributions/app-5.10.2` (배치: `bin/Audiveris -batch -transcribe -export -output <dir> <img>`, JDK25 JAVA_HOME 필요).
+
+### 2026-06-17 (Audiveris OMR 구현 완료)
+- 환경: `openjdk@25` 설치(JDK26은 Gradle 9.1 미지원), Audiveris 5.10.2 소스 빌드 → `vendor/audiveris/`(gitignore).
+- 서브에이전트 주도 TDD 7태스크: config → 전처리(업스케일) → `audiveris_adapter` → `part×voice` 파서 → N성부 오케스트레이터 → 배선.
+- 최종 리뷰 → 수정: `.mxl` 결정적 경로(pre.mxl)+잡별 디렉터리, **업로드 검증(content-type/크기/실이미지, §14)**, 파서 무손실(파트당 전체 음표), config int 가드.
+- 검증: 단위 **24 passed**, **E2E** `315.JPG`(업스케일) → Audiveris → 합창 WAV 18s. `feat/audiveris-omr` → `main` squash 머지 `0eacf9b`.
+- 한계: 실제 SATB는 OMR이 트레블/베이스 **2성부**로 인식(완전 4성부 분리는 교정 에디터/후속). 런타임은 `vendor/` Audiveris 빌드본 + JDK25 필요(이식 시 재빌드).
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 
