@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](superpowers/specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-06-17
+**최종 갱신:** 2026-06-18
 
 ---
 
@@ -25,17 +25,17 @@
 - **Audiveris OMR 스테이지 (image→Audiveris→N성부)** — main 통합 완료, 단위 24 passed + E2E(315.JPG→choir.wav 18s) 검증
   - 계획: [Audiveris 계획](superpowers/plans/2026-06-17-audiveris-omr.md)
   - 구현: 전처리(업스케일) + `audiveris_adapter`(JDK25 배치) + `part×voice` 무손실 파서 + 존재 성부만 합성 + 업로드 검증. 실제 SATB는 트레블/베이스 2성부 가이드(완전 4성부는 교정 영역).
+- **품질 개선 5종** — 33 passed, main 통합 완료 (`716cad9`)
+  - ParseError 추가 + 파서 0-파트 방어 / 업로드 OOM 방어(`read(_MAX_BYTES+1)`) / 믹서 스테레오→모노 변환+samplerate 수정 / Store 격리(root 파라미터+reset, conftest autouse) / test_ports.py 포트 계약 테스트 5종 / pyproject.toml integration 마크 기본 제외
 
 ## ⏳ 대기 / 검증 필요
-- **OMR 실측 검증 완료 (2026-06-17)** — `온맘다해.png`(단성부) oemer 정상 ✅ / `315.JPG`(밀집형 SATB) **oemer 크래시**(`assert track_nums == 2` → 검출 3) ❌. 결론: 실제 SATB엔 oemer 부적합 → **Audiveris 필요**.
-- **GitHub push** — `main`을 origin에 푸시(데스크탑 앱 또는 인증된 터미널).
+- **OMR 실측 검증 완료 (2026-06-17)** — `온맘다해.png`(단성부) oemer 정상 ✅ / `315.JPG`(밀집형 SATB) **oemer 크래시**(`assert track_nums == 2` → 검출 3) ❌. 결론: 실제 SATB엔 oemer 부적합 → Audiveris 완료.
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
 - **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
 - **트랙 B(오프라인)** — 누적 라벨로 한글 OCR 지도학습(`training/`).
-- **품질 개선(1단계 리뷰 후속, IMPORTANT)** — 파트<4 방어(파서), 업로드 크기 제한, 믹서 스테레오 mix-down, 테스트 store 격리, `test_ports.py` 포트 계약 테스트 채우기.
 
 ---
 
