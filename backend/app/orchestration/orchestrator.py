@@ -39,10 +39,12 @@ class Stage1Orchestrator:
             return fail(JobStatus.PARSING, str(e))
         try:
             advance(JobStatus.SYNTH)
+            # score.voices 에 실제 존재하는 성부만 합성 (N-voice 강건성)
+            present = [v for v in VoiceName if v in score.voices]
             def synth(v: VoiceName) -> Path:
                 return self.svs.synthesize(score, v, work_dir / f"{v.value}.wav")
             with ThreadPoolExecutor(max_workers=4) as ex:
-                wavs = list(ex.map(synth, list(VoiceName)))
+                wavs = list(ex.map(synth, present))
         except Exception as e:
             return fail(JobStatus.SYNTH, str(e))
         try:

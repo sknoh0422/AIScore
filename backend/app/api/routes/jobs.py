@@ -1,29 +1,43 @@
 """L1 잡 엔드포인트."""
 from __future__ import annotations
+import io
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from PIL import Image, UnidentifiedImageError
 from app.api.schemas import JobCreated, JobState
 from app.storage.store import store
 from app.orchestration.job import Job, JobStatus
 from app.orchestration.orchestrator import Stage1Orchestrator
-from app.stages.omr.oemer_adapter import OemerAdapter
+from app.stages.omr.audiveris_adapter import AudiverisAdapter
 from app.stages.parsing.music21_parser import Music21Parser
 from app.stages.svs.vowel_synth_adapter import VowelSynthAdapter
 from app.stages.mixing.mixer import Mixer
 
+_ALLOWED_TYPES = {"image/png", "image/jpeg", "image/tiff"}
+_MAX_BYTES = 20 * 1024 * 1024
+
 router = APIRouter()
 
-def _orchestrator() -> Stage1Orchestrator:
-    return Stage1Orchestrator(OemerAdapter(), Music21Parser(), VowelSynthAdapter(), Mixer())
-
 def _run(job_id: str, image_path: Path, work_dir: Path) -> None:
-    _orchestrator().run(job_id, image_path, work_dir, on_update=store.save)
+    orch = Stage1Orchestrator(
+        AudiverisAdapter(work_dir=work_dir / "omr"),
+        Music21Parser(), VowelSynthAdapter(), Mixer())
+    orch.run(job_id, image_path, work_dir, on_update=store.save)
 
 @router.post("/jobs", response_model=JobCreated, status_code=201)
 async def create_job(background: BackgroundTasks, file: UploadFile = File(...)) -> JobCreated:
+    if file.content_type not in _ALLOWED_TYPES:
+        raise HTTPException(415, f"지원하지 않는 형식: {file.content_type}")
+    data = await file.read()
+    if len(data) > _MAX_BYTES:
+        raise HTTPException(413, "파일 크기 초과 (최대 20MB)")
+    try:
+        Image.open(io.BytesIO(data)).verify()
+    except (UnidentifiedImageError, OSError):
+        raise HTTPException(400, "유효한 이미지 파일이 아님")
     job_id, work_dir = store.new_job_dir()
-    image_path = work_dir / "input.png"
-    image_path.write_bytes(await file.read())
+    image_path = work_dir / "input.png"      # UUID 디렉터리 + 고정명 → traversal 차단
+    image_path.write_bytes(data)
     store.save(Job(id=job_id, status=JobStatus.QUEUED))
     background.add_task(_run, job_id, image_path, work_dir)
     return JobCreated(id=job_id)
