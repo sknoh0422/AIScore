@@ -14,6 +14,7 @@ class Job:
     failed_stage: JobStatus | None = None
     error: str | None = None
     result_path: str | None = None
+    score_path: str | None = None
 
     def fail(self, stage: JobStatus, reason: str) -> None:
         self.status = JobStatus.FAILED

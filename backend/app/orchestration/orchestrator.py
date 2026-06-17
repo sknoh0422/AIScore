@@ -35,6 +35,9 @@ class Stage1Orchestrator:
         try:
             advance(JobStatus.PARSING)
             score = self.parser.parse(musicxml)
+            job.score_path = str(musicxml)
+            if on_update:
+                on_update(job)
         except Exception as e:
             return fail(JobStatus.PARSING, str(e))
         try:

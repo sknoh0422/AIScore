@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from app.api.schemas import JobCreated, JobState
 from app.storage.store import store
@@ -49,4 +50,23 @@ def get_job(job_id: str) -> JobState:
         raise HTTPException(404, "job not found")
     return JobState(id=job.id, status=job.status.value,
                     failed_stage=job.failed_stage.value if job.failed_stage else None,
-                    error=job.error, result_path=job.result_path)
+                    error=job.error, result_path=job.result_path,
+                    score_path=job.score_path)
+
+@router.get("/jobs/{job_id}/audio")
+def get_audio(job_id: str) -> FileResponse:
+    job = store.get(job_id)
+    if job is None:
+        raise HTTPException(404, "job not found")
+    if not job.result_path or not Path(job.result_path).exists():
+        raise HTTPException(404, "음원 미생성")
+    return FileResponse(job.result_path, media_type="audio/wav")
+
+@router.get("/jobs/{job_id}/score")
+def get_score(job_id: str) -> FileResponse:
+    job = store.get(job_id)
+    if job is None:
+        raise HTTPException(404, "job not found")
+    if not job.score_path or not Path(job.score_path).exists():
+        raise HTTPException(404, "악보 미생성")
+    return FileResponse(job.score_path, media_type="application/vnd.recordare.musicxml+xml")

@@ -1,5 +1,29 @@
-// 프론트엔드 → 백엔드 API 클라이언트. [스텁]
-// 잡 생성/상태 폴링/결과 조회/악보 교정 호출을 여기로 모은다.
-// 백엔드 스키마(backend/app/api/schemas.py)와 합의 후 구현 (병렬화 원칙 3).
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export {};
+export type JobStatus = "queued"|"omr"|"parsing"|"synth"|"mixing"|"done"|"failed";
+
+export interface JobState {
+  id: string;
+  status: JobStatus;
+  failed_stage?: string;
+  error?: string;
+  result_path?: string;
+  score_path?: string;
+}
+
+export async function createJob(file: File): Promise<{ id: string }> {
+  const form = new FormData();
+  form.append("file", file);
+  const res = await fetch(`${API}/jobs`, { method: "POST", body: form });
+  if (!res.ok) throw new Error(`업로드 실패 (${res.status})`);
+  return res.json();
+}
+
+export async function getJob(id: string): Promise<JobState> {
+  const res = await fetch(`${API}/jobs/${id}`);
+  if (!res.ok) throw new Error(`조회 실패 (${res.status})`);
+  return res.json();
+}
+
+export const audioUrl = (id: string) => `${API}/jobs/${id}/audio`;
+export const scoreUrl = (id: string) => `${API}/jobs/${id}/score`;
