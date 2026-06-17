@@ -47,3 +47,18 @@ class Score:
 
     voices: dict[VoiceName, Voice] = field(default_factory=dict)
     title: str | None = None
+
+
+_PC = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
+
+
+def to_midi(pitch: str) -> int:
+    """음이름("C4","G#3","Bb4") → MIDI 번호. A4=69."""
+    name = pitch[0].upper()
+    i = 1
+    semitone = _PC[name]
+    while i < len(pitch) and pitch[i] in "#b-":
+        semitone += 1 if pitch[i] == "#" else -1
+        i += 1
+    octave = int(pitch[i:])
+    return 12 * (octave + 1) + semitone
