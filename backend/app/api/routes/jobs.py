@@ -49,10 +49,16 @@ def get_job(job_id: str) -> JobState:
     job = store.get(job_id)
     if job is None:
         raise HTTPException(404, "job not found")
-    return JobState(id=job.id, status=job.status.value,
-                    failed_stage=job.failed_stage.value if job.failed_stage else None,
-                    error=job.error, result_path=job.result_path,
-                    score_path=job.score_path)
+    return JobState(
+        id=job.id,
+        status=job.status.value,
+        failed_stage=job.failed_stage.value if job.failed_stage else None,
+        error=job.error,
+        result_path=job.result_path,
+        score_path=job.score_path,
+        voice_paths=job.voice_paths,
+        timing_path=job.timing_path,
+    )
 
 @router.get("/jobs/{job_id}/audio")
 def get_audio(job_id: str) -> FileResponse:

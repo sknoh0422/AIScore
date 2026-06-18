@@ -5,14 +5,14 @@ from app.storage.store import store
 from app.orchestration.job import Job
 
 
-def test_audio_voice_not_found(tmp_path, isolate_store):
+def test_audio_voice_not_found(tmp_path):
     client = TestClient(app)
     store._jobs["j1"] = Job(id="j1", status="done")
     resp = client.get("/jobs/j1/audio/soprano")
     assert resp.status_code == 404
 
 
-def test_audio_voice_returns_wav(tmp_path, isolate_store):
+def test_audio_voice_returns_wav(tmp_path):
     client = TestClient(app)
     wav = tmp_path / "soprano.wav"
     wav.write_bytes(b"RIFF")
