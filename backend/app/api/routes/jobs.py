@@ -3,6 +3,7 @@ from __future__ import annotations
 import io
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
+from fastapi import Path as FPath
 from fastapi.responses import FileResponse
 from PIL import Image, UnidentifiedImageError
 from app.api.schemas import JobCreated, JobState
@@ -61,6 +62,19 @@ def get_audio(job_id: str) -> FileResponse:
     if not job.result_path or not Path(job.result_path).exists():
         raise HTTPException(404, "음원 미생성")
     return FileResponse(job.result_path, media_type="audio/wav")
+
+@router.get("/jobs/{job_id}/audio/{voice}")
+def get_voice_audio(
+    job_id: str,
+    voice: str = FPath(..., pattern="^(soprano|alto|tenor|bass)$"),
+) -> FileResponse:
+    job = store.get(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    path = job.voice_paths.get(voice)
+    if not path or not Path(path).exists():
+        raise HTTPException(404, f"{voice} not ready")
+    return FileResponse(path, media_type="audio/wav")
 
 @router.get("/jobs/{job_id}/score")
 def get_score(job_id: str) -> FileResponse:

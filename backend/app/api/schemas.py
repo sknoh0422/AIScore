@@ -12,3 +12,5 @@ class JobState(BaseModel):
     error: str | None = None
     result_path: str | None = None
     score_path: str | None = None
+    voice_paths: dict[str, str] = {}
+    timing_path: str | None = None

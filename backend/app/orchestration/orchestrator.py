@@ -48,6 +48,9 @@ class Stage1Orchestrator:
                 return self.svs.synthesize(score, v, work_dir / f"{v.value}.wav")
             with ThreadPoolExecutor(max_workers=4) as ex:
                 wavs = list(ex.map(synth, present))
+            job.voice_paths = {v.value: str(work_dir / f"{v.value}.wav") for v in present}
+            if on_update:
+                on_update(job)
         except Exception as e:
             return fail(JobStatus.SYNTH, str(e))
         try:
