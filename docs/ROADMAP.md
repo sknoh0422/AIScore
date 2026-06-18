@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](superpowers/specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-06-18 (3차)
+**최종 갱신:** 2026-06-18 (4차)
 
 ---
 
@@ -32,9 +32,7 @@
   - 백엔드 추가: CORS, score_path 추적, `/audio` · `/score` FileResponse 엔드포인트
   - 실행: `uvicorn app.main:app --reload` (포트 8000) + `npm run dev` (포트 3000)
 
-## ⏳ 진행 중
-- **feat/vocal-quality** — 4성부 화음 분리 + 성악 합성 개선. 커밋 `df2e363`. main 미머지.
-- **모바일 앱 구현** — 계획서 작성 완료([2026-06-18-mobile-app.md](superpowers/plans/2026-06-18-mobile-app.md)), Task 1부터 서브에이전트 실행 예정.
+## ⏳ 대기 / 검증 필요
 
 ## ⏳ 대기 / 검증 필요
 - **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 음표 커버리지 29%, 피치 정확도 27% 확인. 300 DPI 스캔본 업로드 후 재검증 필요.
@@ -98,13 +96,14 @@
   - 백엔드: CORS, score_path, `/audio`·`/score` FileResponse 추가.
 - `docs/ARCHITECTURE.md` 구조 설명서 작성.
 
-### 2026-06-18 (성악품질개선 + OMR검증 + 모바일설계)
-- **4성부 화음 분리** (`music21_parser.py`) — Part별 chord 상단/하단 분리로 S/A/T/B 추출. verovio+cairosvg로 성부별 SVG/PNG 악보 이미지 생성 및 시각 비교.
-- **성악 합성 품질 개선** (`vowel_synth_adapter.py`) — 3배음 사인파 → 성부별 배음(5~7개)+비브라토(5.5Hz)+숨소리+어택/릴리즈.
-- **OMR 정확도 실측 검증** — 315.JPG(500×777px 촬영본) 원본 찬송가 음표와 1:1 비교: 음표 커버리지 29%(15/51), 피치 정확도 27%(4/15). 근본 원인 = 저해상도. 고해상도 스캔 재검증 예정.
-- **모바일 앱 설계 확정** — iOS/Android 공통 React Native+Expo 채택. 화면: 홈(촬영/선택) → 처리중(단계폴링) → 플레이어(악보+파트선택+동기재생). 파트별 음원 선택 재생(expo-av 멀티트랙) + OSMD 실시간 하이라이팅(WebView+postMessage+timing.json) 설계.
-- **timing.json API 설계** — 성부별 음표 시작/종료 시각 메타데이터. 백엔드 Task 1~2, 모바일 Task 3~10 계획서 완료.
-- `feat/vocal-quality` 커밋 `df2e363` (main 미머지).
+### 2026-06-18 (성악품질개선 + OMR검증 + 모바일설계 + feat/vocal-quality 머지)
+- **4성부 화음 분리** (`music21_parser.py`) — `_split_two_voices()`로 Part별 chord 상단/하단 분리. 악기 파트(Piano/Organ 등) 필터링, 성악 파트만 추출. 3+ 피치 코드 중간음 제거 경고 로그 추가.
+- **성악 합성 품질 개선** (`vowel_synth_adapter.py`) — 포먼트 IIR 필터 + 성부별 비브라토(Fleming/Ferrier/Pavarotti/Ramey 모델). timing.json BPM과 오디오 BPM 동기화.
+- **timing.json** — `core/timing.py`(횡단 유틸)로 이동(레이어 위반 해소). 성부별 음표 시작/종료 시각 JSON + `GET /timing` 엔드포인트.
+- **성부별 WAV 엔드포인트** — `GET /jobs/{id}/audio/{voice}` 추가.
+- **OMR 정확도 실측** — 315.JPG(500×777px): 음표 커버리지 29%, 피치 정확도 27%. 저해상도 한계. 300 DPI 재검증 예정.
+- **모바일 앱 설계 확정** — React Native+Expo. 계획서 `2026-06-18-mobile-app.md` 완료.
+- `feat/vocal-quality` → main squash 머지 완료.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 

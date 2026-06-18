@@ -1,10 +1,11 @@
 """L1 잡 엔드포인트."""
 from __future__ import annotations
 import io
+import json
 from pathlib import Path
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi import Path as FPath
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
 from app.api.schemas import JobCreated, JobState
 from app.storage.store import store
@@ -90,3 +91,12 @@ def get_score(job_id: str) -> FileResponse:
     if not job.score_path or not Path(job.score_path).exists():
         raise HTTPException(404, "악보 미생성")
     return FileResponse(job.score_path, media_type="application/vnd.recordare.musicxml+xml")
+
+@router.get("/jobs/{job_id}/timing")
+def get_timing(job_id: str) -> JSONResponse:
+    job = store.get(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if not job.timing_path or not Path(job.timing_path).exists():
+        raise HTTPException(404, "timing not ready")
+    return JSONResponse(json.loads(Path(job.timing_path).read_text()))

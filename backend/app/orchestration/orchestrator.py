@@ -6,6 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from app.domain.ports import OmrPort, ScoreParserPort, SvsPort, MixerPort
 from app.domain.score import VoiceName
 from app.orchestration.job import Job, JobStatus
+from app.core.timing import write_timing, DEFAULT_BPM
 
 class Stage1Orchestrator:
     def __init__(self, omr: OmrPort, parser: ScoreParserPort, svs: SvsPort, mixer: MixerPort):
@@ -49,6 +50,11 @@ class Stage1Orchestrator:
             with ThreadPoolExecutor(max_workers=4) as ex:
                 wavs = list(ex.map(synth, present))
             job.voice_paths = {v.value: str(work_dir / f"{v.value}.wav") for v in present}
+            # timing.json 생성 (BPM은 SVS 어댑터 값 우선)
+            timing_path = work_dir / "timing.json"
+            bpm = getattr(self.svs, "bpm", DEFAULT_BPM)
+            write_timing(score, timing_path, bpm=bpm)
+            job.timing_path = str(timing_path)
             if on_update:
                 on_update(job)
         except Exception as e:

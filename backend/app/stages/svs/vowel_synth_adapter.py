@@ -10,9 +10,9 @@ import numpy as np
 from scipy.signal import iirpeak, lfilter
 import soundfile as sf
 from app.domain.score import Score, VoiceName, to_midi
+from app.core.timing import DEFAULT_BPM
 
 SAMPLE_RATE = 44_100
-DEFAULT_BPM = 80
 
 # 포먼트 정의: (주파수Hz, 대역폭Hz) 목록 — "우" 모음 성도 공명
 _FORMANTS: dict[VoiceName, list[tuple[float, float]]] = {
@@ -79,7 +79,7 @@ def _vocal_tone(freq: float, n: int, voice: VoiceName) -> np.ndarray:
         env[:atk] = np.linspace(0.0, 1.0, atk)
     if rel:
         env[-rel:] = np.linspace(1.0, 0.0, rel)
-    return wave * env
+    return (wave * env).astype(np.float32)
 
 
 class VowelSynthAdapter:
