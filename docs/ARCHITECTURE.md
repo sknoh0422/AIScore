@@ -1,7 +1,7 @@
 # AIScore — 프로젝트 구조 설명서
 
 > 이 문서는 AIScore 백엔드 아키텍처, 파이프라인, 구현 이력을 HTML 설명자료 제작을 위해 정리한 참고 문서입니다.
-> 최종 갱신: 2026-06-18
+> 최종 갱신: 2026-06-18 (3차)
 
 ---
 
@@ -12,21 +12,22 @@
 
 ### 핵심 파이프라인
 ```
-악보 이미지
-    ↓ OMR (광학 악보 인식)
+악보 이미지 (카메라 촬영 / 파일 업로드)
+    ↓ OMR (광학 악보 인식 — Audiveris)
   MusicXML
-    ↓ 파싱 (music21)
+    ↓ 파싱 (music21 — chord→S/A/T/B 분리)
   Score (SATB 성부 분리)
     ↓ SVS (성부별 가창 합성) ×4 병렬
-  성부별 WAV ×N
-    ↓ 믹싱
-  합창 WAV ▶
+  성부별 WAV ×4  +  timing.json (음표 시작/종료 시각)
+    ↓ 믹싱 (선택 성부만)
+  [선택 성부] WAV ▶  +  악보 실시간 하이라이팅
 ```
 
 ### 단계 로드맵
 | 단계 | 내용 | 상태 |
 |------|------|------|
 | **1단계** | 가사 무시, 모음 "우"로 합창 → 연습 가이드 트랙 | ✅ 완료 |
+| **모바일** | iOS/Android 앱 — 파트 선택 재생 + 악보 싱크 하이라이팅 | 🔨 진행 중 |
 | **2단계** | 가사 추가(텍스트 입력/OCR) + 음절↔음표 정렬 + 가사 가창 | 예정 |
 | **트랙 B** | 교정 데이터로 한글 OCR 지도학습(오프라인) | 예정 |
 
@@ -127,7 +128,21 @@ aiscore/
 │   │   ├── test_api.py
 │   │   └── … (총 33개 테스트, integration 마크 별도)
 │   └── pyproject.toml
-├── frontend/                        # Next.js (예정)
+├── frontend/                        # Next.js 웹 앱 (업로드·폴링·OSMD·오디오)
+├── mobile/                          # React Native + Expo 모바일 앱 (진행 중)
+│   ├── app/
+│   │   ├── index.tsx                # HomeScreen (악보 촬영/선택/업로드)
+│   │   ├── processing/[id].tsx      # ProcessingScreen (단계 폴링)
+│   │   └── player/[id].tsx          # PlayerScreen (악보+파트선택+동기재생)
+│   ├── components/
+│   │   ├── PartSelector.tsx         # S/A/T/B 파트 토글
+│   │   ├── AudioMixer.tsx           # expo-av 4성부 멀티트랙
+│   │   ├── ScoreViewer.tsx          # WebView + OSMD + 하이라이팅
+│   │   └── PlaybackControls.tsx     # 재생/정지/시크바
+│   ├── lib/
+│   │   ├── api.ts                   # FastAPI 클라이언트
+│   │   └── timing.ts                # 음표 타이밍 계산 유틸
+│   └── assets/score-viewer.html     # WebView OSMD 호스트 페이지
 ├── training/                        # 오프라인 OCR 학습 (트랙 B)
 ├── docs/
 │   ├── ROADMAP.md                   # 세션 진입점 · 진행 상태
@@ -147,10 +162,20 @@ queued
   → omr        (Audiveris 악보 인식)
     → parsing  (music21 SATB 분리)
       → synth  (VowelSynth 성부별 가창 ×N 병렬)
+               → voice_paths = {soprano/alto/tenor/bass: WAV경로}
+               → timing_path = timing.json (음표별 시작/종료 초)
         → mixing  (Mixer 합창 합성)
-          → done   ✅  result_path = "data/jobs/{id}/choir.wav"
+          → done   ✅  result_path = choir.wav
           ↘ failed ❌  failed_stage + error 메시지 기록
 ```
+
+**잡 결과 필드:**
+| 필드 | 설명 |
+|------|------|
+| `result_path` | 전체 합창 WAV |
+| `score_path` | MusicXML (OSMD 렌더링용) |
+| `voice_paths` | 성부별 WAV `{soprano, alto, tenor, bass}` |
+| `timing_path` | 음표 타이밍 JSON (모바일 하이라이팅용) |
 
 어느 단계에서 예외가 발생해도 잡 상태가 `failed`로 즉시 표면화됩니다 (조용한 실패 금지).
 
@@ -195,25 +220,54 @@ queued
 | 분류 | 기술 |
 |------|------|
 | 백엔드 | Python 3.10 · FastAPI · uvicorn |
-| 환경 | conda `aiscore` · Apple Silicon(MPS) |
+| 환경 | conda `aiscore` · Apple Silicon(MPS→CPU fallback) |
 | OMR | Audiveris 5.10.2 (Java/JDK25) |
 | 악보 파싱 | music21 |
-| 가창 합성 | 자체 VowelSynth (사인파 기반, 1단계) |
+| 가창 합성 | 자체 VowelSynth (배음+비브라토+엔벨로프, 1단계) |
 | 오디오 | soundfile · numpy |
-| 이미지 전처리 | Pillow (LANCZOS 업스케일) |
+| 이미지 전처리 | Pillow (LANCZOS 3× 업스케일) |
 | 테스트 | pytest · TestClient |
-| 프론트엔드 | Next.js + OSMD (예정) |
+| 웹 프론트엔드 | Next.js 15 · Tailwind v4 · TypeScript 5 · OSMD |
+| **모바일 앱** | **React Native · Expo SDK 51 · expo-av · expo-image-picker · react-native-webview** |
+| 악보 렌더링 | OSMD (OpenSheetMusicDisplay) — 웹/WebView 공통 |
 | 버전 관리 | Git / GitHub (`sknoh0422/AIScore`) |
 
 ---
 
-## 8. 다음 작업 (프론트엔드)
+## 8. 구현 이력 추가 (2026-06-18)
+
+| 날짜 | 작업 | 산출물 |
+|------|------|--------|
+| 2026-06-18 | **품질 개선 5종** | 33 tests, `feat/quality-improvements` → main |
+| 2026-06-18 | **웹 프론트엔드** (Next.js + OSMD) | 업로드·폴링·악보렌더·오디오, `feat/frontend` → main |
+| 2026-06-18 | **4성부 화음 분리 + 성악 합성 개선** | `feat/vocal-quality` 진행 중 |
+| 2026-06-18 | **OMR 정확도 실측** | 315.JPG 커버리지 29%·정확도 27% — 고해상도 재검증 필요 |
+| 2026-06-18 | **모바일 앱 설계** (React Native + Expo) | 계획서 11 Tasks 작성 완료 |
+
+## 9. 모바일 앱 아키텍처
 
 ```
-프론트엔드 (Next.js + OSMD)
-  ├── 파일 업로드 UI          → POST /jobs
-  ├── 잡 상태 폴링            → GET /jobs/{id}  (queued→done/failed)
-  ├── 악보 렌더링              → OSMD (OpenSheetMusicDisplay)
-  ├── 합창 WAV 재생            → HTML5 Audio
-  └── 교정 에디터 (후속)       → SATB 성부 수동 수정
+[iPhone / Android]
+  ┌─────────────────────────┐
+  │  HomeScreen             │  expo-image-picker (촬영/갤러리)
+  │  ProcessingScreen       │  2초 폴링 → 단계 진행 표시
+  │  PlayerScreen           │
+  │  ├─ ScoreViewer         │  WebView + OSMD + postMessage 하이라이팅
+  │  ├─ PartSelector        │  S/A/T/B 토글 (복수 선택)
+  │  ├─ AudioMixer          │  expo-av 4성부 멀티트랙 (GainNode on/off)
+  │  └─ PlaybackControls    │  재생/정지/시크바
+  └─────────────────────────┘
+          ↕ HTTP
+  [FastAPI 백엔드]
+    GET /jobs/{id}/audio/{voice}   성부별 WAV
+    GET /jobs/{id}/timing          음표 타이밍 JSON
+    GET /jobs/{id}/score           MusicXML
+```
+
+**타이밍 동기화 흐름:**
+```
+AudioMixer.currentTime (100ms 폴링)
+  → findNoteIndex(timingData, currentTime)
+  → ScoreViewer.postMessage({type:"seek", currentTime})
+  → WebView JS: OSMD cursor.next() × N + 색상 변경
 ```
