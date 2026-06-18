@@ -77,7 +77,7 @@
 |------|-----------|---------|
 | `OmrPort` | `AudiverisAdapter` | SMT/SMT++ (트랜스포머 폴리포닉) |
 | `ScoreParserPort` | `Music21Parser` | — |
-| `SvsPort` | `VowelSynthAdapter` | `LyricSingingAdapter` (2단계) |
+| `SvsPort` | `VowelSynthAdapter` (포먼트+성악가 특성) | `LyricSingingAdapter` (2단계) |
 | `MixerPort` | `Mixer` | — |
 | `LyricSourcePort` | (2단계) | `TextInputProvider` / `OcrProvider` |
 
@@ -223,7 +223,7 @@ queued
 | 환경 | conda `aiscore` · Apple Silicon(MPS→CPU fallback) |
 | OMR | Audiveris 5.10.2 (Java/JDK25) |
 | 악보 파싱 | music21 |
-| 가창 합성 | 자체 VowelSynth (배음+비브라토+엔벨로프, 1단계) |
+| 가창 합성 | 자체 VowelSynth — 성악가 특성 모델링 (포먼트 필터 + 성부별 비브라토 rate/depth + squillo) |
 | 오디오 | soundfile · numpy |
 | 이미지 전처리 | Pillow (LANCZOS 3× 업스케일) |
 | 테스트 | pytest · TestClient |

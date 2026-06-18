@@ -20,6 +20,223 @@
 
 ---
 
+## Task 0: 성악가 특성 모델링 — VowelSynth 포먼트 합성
+
+**Files:**
+- Modify: `backend/app/stages/svs/vowel_synth_adapter.py`
+- Test: `backend/tests/test_vowel_synth.py`
+
+**Interfaces:**
+- 성부별 포먼트 프리셋 + 비브라토 파라미터 추가
+- 기존 `synthesize()` 시그니처 유지 (SvsPort 계약 불변)
+
+**성악가 참조 특성 ("우" 모음 포먼트, Hz):**
+| 성부 | 참조 | F1 | F2 | F3(squillo) | 비브라토 |
+|------|------|----|----|-------------|---------|
+| 소프라노 | Renée Fleming | 350 | 900 | 2700 | 6.5Hz/±0.7% |
+| 알토 | Kathleen Ferrier | 350 | 700 | 2500 | 5.0Hz/±0.6% |
+| 테너 | Pavarotti | 350 | 800 | 2800 | 6.0Hz/±0.6% |
+| 베이스 | Samuel Ramey | 300 | 600 | 2600 | 4.5Hz/±0.5% |
+
+- [ ] **Step 1: 테스트 작성**
+
+```python
+# backend/tests/test_vowel_synth.py
+import numpy as np
+import soundfile as sf
+from pathlib import Path
+from app.domain.score import Score, Voice, Note, VoiceName
+from app.stages.svs.vowel_synth_adapter import VowelSynthAdapter
+
+def _one_note_score(voice: VoiceName, pitch="A4") -> Score:
+    return Score(voices={voice: Voice(name=voice, notes=[Note(pitch=pitch, quarter_length=2.0)])})
+
+def test_soprano_formant_produces_wav(tmp_path):
+    out = tmp_path / "s.wav"
+    VowelSynthAdapter().synthesize(_one_note_score(VoiceName.SOPRANO), VoiceName.SOPRANO, out)
+    data, sr = sf.read(out)
+    assert sr == 44100
+    assert len(data) > 0
+
+def test_tenor_squillo_present(tmp_path):
+    """테너 2800Hz squillo 성분이 존재하는지 FFT로 확인"""
+    out = tmp_path / "t.wav"
+    VowelSynthAdapter().synthesize(_one_note_score(VoiceName.TENOR), VoiceName.TENOR, out)
+    data, sr = sf.read(out)
+    freqs = np.fft.rfftfreq(len(data), 1/sr)
+    mag = np.abs(np.fft.rfft(data))
+    # 2500~3100Hz 대역 에너지가 존재해야 함
+    band = mag[(freqs >= 2500) & (freqs <= 3100)]
+    assert band.max() > 0.0
+
+def test_all_voices_synthesize(tmp_path):
+    for vn in VoiceName:
+        out = tmp_path / f"{vn.value}.wav"
+        VowelSynthAdapter().synthesize(_one_note_score(vn), vn, out)
+        assert out.exists() and out.stat().st_size > 0
+```
+
+- [ ] **Step 2: 테스트 실패 확인**
+
+```bash
+cd backend && /opt/miniconda3/envs/aiscore/bin/python -m pytest tests/test_vowel_synth.py -v
+```
+Expected: `test_tenor_squillo_present` FAIL (현재 squillo 없음)
+
+- [ ] **Step 3: vowel_synth_adapter.py — 포먼트 필터 적용**
+
+```python
+# backend/app/stages/svs/vowel_synth_adapter.py 전체 교체
+"""L3 SVS(1단계): 성악가 특성 모델링 — 포먼트 필터 + 비브라토.
+
+성부별 참조 성악가:
+  소프라노: Renée Fleming  / 알토: Kathleen Ferrier
+  테너:    Pavarotti       / 베이스: Samuel Ramey
+"""
+from __future__ import annotations
+from pathlib import Path
+import numpy as np
+from scipy.signal import iirpeak, lfilter
+import soundfile as sf
+from app.domain.score import Score, VoiceName, to_midi
+
+SAMPLE_RATE = 44_100
+DEFAULT_BPM = 80
+
+# 포먼트 정의: (주파수Hz, 대역폭Hz) 목록 — "우" 모음 성도 공명
+_FORMANTS: dict[VoiceName, list[tuple[float, float]]] = {
+    VoiceName.SOPRANO: [(350,80),(900,100),(2700,120),(3200,180)],
+    VoiceName.ALTO:    [(350,70),(700, 90),(2500,110),(3000,160)],
+    VoiceName.TENOR:   [(350,75),(800, 95),(2800,100),(3300,150)],  # squillo 2800Hz
+    VoiceName.BASS:    [(300,60),(600, 80),(2600,110),(3100,160)],
+}
+
+# 비브라토 (rate Hz, depth ±비율)
+_VIBRATO: dict[VoiceName, tuple[float, float]] = {
+    VoiceName.SOPRANO: (6.5, 0.007),
+    VoiceName.ALTO:    (5.0, 0.006),
+    VoiceName.TENOR:   (6.0, 0.006),
+    VoiceName.BASS:    (4.5, 0.005),
+}
+
+# 배음 진폭 (기본 성문파)
+_HARMONICS: dict[VoiceName, list[tuple[int,float]]] = {
+    VoiceName.SOPRANO: [(1,1.0),(2,0.45),(3,0.25),(4,0.15),(5,0.08),(6,0.04)],
+    VoiceName.ALTO:    [(1,1.0),(2,0.50),(3,0.30),(4,0.18),(5,0.09),(6,0.04)],
+    VoiceName.TENOR:   [(1,1.0),(2,0.52),(3,0.32),(4,0.20),(5,0.11),(6,0.05)],
+    VoiceName.BASS:    [(1,1.0),(2,0.55),(3,0.35),(4,0.20),(5,0.09)],
+}
+
+_ATTACK_SEC  = 0.07
+_RELEASE_SEC = 0.09
+
+
+def _apply_formants(wave: np.ndarray, voice: VoiceName) -> np.ndarray:
+    """IIR peak 필터로 포먼트(성도 공명) 적용."""
+    out = wave.copy()
+    for f0, bw in _FORMANTS[voice]:
+        Q = f0 / bw
+        b, a = iirpeak(f0, Q, fs=SAMPLE_RATE)
+        out = lfilter(b, a, out)
+    return out
+
+
+def _freq(midi: int) -> float:
+    return 440.0 * 2.0 ** ((midi - 69) / 12.0)
+
+
+def _vocal_tone(freq: float, n: int, voice: VoiceName) -> np.ndarray:
+    t = np.arange(n) / SAMPLE_RATE
+    rate, depth = _VIBRATO[voice]
+    vibrato = 1.0 + depth * np.sin(2 * np.pi * rate * t)
+    phase = 2 * np.pi * freq * np.cumsum(vibrato) / SAMPLE_RATE
+
+    wave = sum(amp * np.sin(h * phase) for h, amp in _HARMONICS[voice])
+    wave = _apply_formants(wave.astype(np.float64), voice).astype(np.float32)
+
+    # 숨소리(breathiness)
+    wave += 0.015 * np.random.default_rng(seed=int(freq)).standard_normal(n).astype(np.float32)
+
+    # 어택/릴리즈 엔벨로프
+    env = np.ones(n, dtype=np.float32)
+    atk = min(int(_ATTACK_SEC * SAMPLE_RATE), n // 3)
+    rel = min(int(_RELEASE_SEC * SAMPLE_RATE), n // 3)
+    if atk: env[:atk] = np.linspace(0.0, 1.0, atk)
+    if rel: env[-rel:] = np.linspace(1.0, 0.0, rel)
+    return wave * env
+
+
+class VowelSynthAdapter:
+    def __init__(self, bpm: int = DEFAULT_BPM) -> None:
+        self.bpm = bpm
+
+    def synthesize(self, score: Score, voice: VoiceName, out_path: Path) -> Path:
+        notes = score.voices[voice].notes
+        sec_per_quarter = 60.0 / self.bpm
+        segments: list[np.ndarray] = []
+        for note in notes:
+            n = max(1, int(note.quarter_length * sec_per_quarter * SAMPLE_RATE))
+            if note.pitch is None:
+                segments.append(np.zeros(n, dtype=np.float32))
+            else:
+                segments.append(_vocal_tone(_freq(to_midi(note.pitch)), n, voice) * 0.25)
+        audio = np.concatenate(segments) if segments else np.zeros(1, dtype=np.float32)
+        sf.write(out_path, audio, SAMPLE_RATE)
+        return out_path
+```
+
+- [ ] **Step 4: scipy 설치 확인**
+
+```bash
+/opt/miniconda3/envs/aiscore/bin/pip show scipy | grep Version
+```
+Expected: `Version: 1.x.x` (이미 설치됨. 없으면 `pip install scipy`)
+
+- [ ] **Step 5: 테스트 통과 확인**
+
+```bash
+cd backend && /opt/miniconda3/envs/aiscore/bin/python -m pytest tests/test_vowel_synth.py -v
+```
+Expected: 3 PASSED
+
+- [ ] **Step 6: 전체 회귀 테스트**
+
+```bash
+cd backend && /opt/miniconda3/envs/aiscore/bin/python -m pytest -v
+```
+Expected: 모두 PASSED
+
+- [ ] **Step 7: 청음 검증 — 4성부 WAV 생성 후 재생**
+
+```bash
+/opt/miniconda3/envs/aiscore/bin/python - <<'EOF'
+import sys, pathlib; sys.path.insert(0,"backend")
+from app.domain.score import Score, Voice, Note, VoiceName
+from app.stages.svs.vowel_synth_adapter import VowelSynthAdapter
+import pathlib
+
+notes = [Note(pitch=p, quarter_length=q) for p,q in
+         [("F4",1),("A4",1),("Bb4",1),("Bb4",1),("A4",1),("G4",1),("F4",2)]]
+out = pathlib.Path("/tmp/synth_test")
+out.mkdir(exist_ok=True)
+for vn in VoiceName:
+    score = Score(voices={vn: Voice(name=vn, notes=notes)})
+    VowelSynthAdapter().synthesize(score, vn, out/f"{vn.value}.wav")
+    print(f"{vn.value}.wav 생성")
+EOF
+afplay /tmp/synth_test/soprano.wav
+afplay /tmp/synth_test/tenor.wav
+```
+
+- [ ] **Step 8: 커밋**
+
+```bash
+git add backend/app/stages/svs/vowel_synth_adapter.py backend/tests/test_vowel_synth.py
+git commit -m "feat(svs): 성악가 특성 포먼트 합성 — Fleming/Ferrier/Pavarotti/Ramey 모델"
+```
+
+---
+
 ## 화면 흐름
 
 ```
