@@ -27,12 +27,15 @@
   - 구현: 전처리(업스케일) + `audiveris_adapter`(JDK25 배치) + `part×voice` 무손실 파서 + 존재 성부만 합성 + 업로드 검증. 실제 SATB는 트레블/베이스 2성부 가이드(완전 4성부는 교정 영역).
 - **품질 개선 5종** — 33 passed, main 통합 완료 (`716cad9`)
   - ParseError 추가 + 파서 0-파트 방어 / 업로드 OOM 방어(`read(_MAX_BYTES+1)`) / 믹서 스테레오→모노 변환+samplerate 수정 / Store 격리(root 파라미터+reset, conftest autouse) / test_ports.py 포트 계약 테스트 5종 / pyproject.toml integration 마크 기본 제외
+- **프론트엔드 (Next.js + OSMD)** — main 통합 완료 (`924a282`)
+  - Next.js 15 + Tailwind v4 + TypeScript 5. 업로드 홈(드래그&드롭) → 잡 페이지(2초 폴링+진행 바+오디오 플레이어+OSMD 악보 렌더)
+  - 백엔드 추가: CORS, score_path 추적, `/audio` · `/score` FileResponse 엔드포인트
+  - 실행: `uvicorn app.main:app --reload` (포트 8000) + `npm run dev` (포트 3000)
 
 ## ⏳ 대기 / 검증 필요
-- **OMR 실측 검증 완료 (2026-06-17)** — `온맘다해.png`(단성부) oemer 정상 ✅ / `315.JPG`(밀집형 SATB) **oemer 크래시**(`assert track_nums == 2` → 검출 3) ❌. 결론: 실제 SATB엔 oemer 부적합 → Audiveris 완료.
+- **프론트엔드 브라우저 실증** — 백엔드+프론트엔드 동시 실행 후 실제 악보 업로드 → 음원 재생 확인 필요.
 
 ## 📋 예정 (다음 후보, 각각 별도 spec→plan)
-- **프론트엔드** — Next.js + OSMD: 업로드·잡 상태·악보 렌더·교정 에디터.
 - **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬(slur/tie/절) + 가사 가창 SVS 어댑터.
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
 - **트랙 B(오프라인)** — 누적 라벨로 한글 OCR 지도학습(`training/`).
@@ -79,6 +82,15 @@
 - 최종 리뷰 → 수정: `.mxl` 결정적 경로(pre.mxl)+잡별 디렉터리, **업로드 검증(content-type/크기/실이미지, §14)**, 파서 무손실(파트당 전체 음표), config int 가드.
 - 검증: 단위 **24 passed**, **E2E** `315.JPG`(업스케일) → Audiveris → 합창 WAV 18s. `feat/audiveris-omr` → `main` squash 머지 `0eacf9b`.
 - 한계: 실제 SATB는 OMR이 트레블/베이스 **2성부**로 인식(완전 4성부 분리는 교정 에디터/후속). 런타임은 `vendor/` Audiveris 빌드본 + JDK25 필요(이식 시 재빌드).
+
+### 2026-06-18 (품질 개선 + 프론트엔드)
+- **품질 개선 5종** — `feat/quality-improvements` → main (`716cad9`). 33 tests passed.
+  - ParseError / 업로드 OOM 방어 / 믹서 스테레오→모노+samplerate / Store 격리+conftest / test_ports.py 계약 테스트 / integration 마크 기본 제외.
+- **프론트엔드 초기 구현** — `feat/frontend` → main (`924a282`).
+  - Next.js 15 + Tailwind v4 + TypeScript 5 + OSMD.
+  - 업로드 홈(드래그&드롭) → `/jobs/{id}` 페이지(2초 폴링, 진행 바, 오디오 플레이어, OSMD 악보 렌더).
+  - 백엔드: CORS, score_path, `/audio`·`/score` FileResponse 추가.
+- `docs/ARCHITECTURE.md` 구조 설명서 작성.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 
