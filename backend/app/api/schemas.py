@@ -11,3 +11,4 @@ class JobState(BaseModel):
     failed_stage: str | None = None
     error: str | None = None
     result_path: str | None = None
+    score_path: str | None = None
