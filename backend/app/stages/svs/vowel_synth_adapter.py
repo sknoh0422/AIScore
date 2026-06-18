@@ -43,12 +43,15 @@ _RELEASE_SEC = 0.09
 
 
 def _apply_formants(wave: np.ndarray, voice: VoiceName) -> np.ndarray:
-    """IIR peak 필터로 포먼트(성도 공명) 적용."""
+    """IIR peak 필터로 포먼트(성도 공명) 적용. 4단 직렬 후 피크 정규화."""
     out = wave.copy()
     for f0, bw in _FORMANTS[voice]:
         Q = f0 / bw
         b, a = iirpeak(f0, Q, fs=SAMPLE_RATE)
         out = lfilter(b, a, out)
+    peak = np.abs(out).max()
+    if peak > 1e-8:
+        out = out / peak
     return out
 
 

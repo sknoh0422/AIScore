@@ -17,16 +17,23 @@ def test_soprano_formant_produces_wav(tmp_path):
     assert len(data) > 0
 
 
-def test_tenor_squillo_present(tmp_path):
-    """테너 2800Hz squillo 성분이 존재하는지 FFT로 확인"""
-    out = tmp_path / "t.wav"
-    VowelSynthAdapter().synthesize(_one_note_score(VoiceName.TENOR), VoiceName.TENOR, out)
-    data, sr = sf.read(out)
-    freqs = np.fft.rfftfreq(len(data), 1 / sr)
-    mag = np.abs(np.fft.rfft(data))
-    # 2500~3100Hz 대역 에너지가 존재해야 함
-    band = mag[(freqs >= 2500) & (freqs <= 3100)]
-    assert band.max() > 0.0
+def test_tenor_squillo_formant_boost(tmp_path):
+    """포먼트 필터가 테너 2800Hz squillo 대역을 실제로 증폭하는지 검증"""
+    from app.stages.svs.vowel_synth_adapter import _apply_formants
+
+    SAMPLE_RATE = 44_100
+    rng = np.random.default_rng(42)
+    white = rng.standard_normal(SAMPLE_RATE * 2).astype(np.float64)
+
+    filtered = _apply_formants(white, VoiceName.TENOR)
+
+    def band_energy(sig, lo, hi):
+        mag = np.abs(np.fft.rfft(sig))
+        freqs = np.fft.rfftfreq(len(sig), 1 / SAMPLE_RATE)
+        return float(mag[(freqs >= lo) & (freqs <= hi)].sum())
+
+    boost = band_energy(filtered, 2700, 2900) / (band_energy(white, 2700, 2900) + 1e-12)
+    assert boost > 1.5, f"squillo 증폭 비율 {boost:.2f}x — 포먼트 필터 효과 미달"
 
 
 def test_all_voices_synthesize(tmp_path):
