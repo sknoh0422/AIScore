@@ -9,6 +9,8 @@ export interface JobState {
   error?: string;
   result_path?: string;
   score_path?: string;
+  voice_paths?: Record<string, string>;
+  timing_path?: string;
 }
 
 export async function createJob(file: File): Promise<{ id: string }> {
@@ -26,4 +28,13 @@ export async function getJob(id: string): Promise<JobState> {
 }
 
 export const audioUrl = (id: string) => `${API}/jobs/${id}/audio`;
+export const voiceAudioUrl = (id: string, voice: string) => `${API}/jobs/${id}/audio/${voice}`;
 export const scoreUrl = (id: string) => `${API}/jobs/${id}/score`;
+export const metaUrl = (id: string) => `${API}/jobs/${id}/meta`;
+export const imageUrl = (id: string) => `${API}/jobs/${id}/image`;
+
+export interface NoteInfo { solfege: string; pitch: string | null; measure: number | null; }
+export interface ScoreMeta {
+  key: string; time: string; parts: string[];
+  soprano_notes: NoteInfo[];
+}

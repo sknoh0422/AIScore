@@ -1,7 +1,7 @@
 # AIScore — 프로젝트 구조 설명서
 
 > 이 문서는 AIScore 백엔드 아키텍처, 파이프라인, 구현 이력을 HTML 설명자료 제작을 위해 정리한 참고 문서입니다.
-> 최종 갱신: 2026-06-18 (3차)
+> 최종 갱신: 2026-06-19 (4차)
 
 ---
 
@@ -75,7 +75,7 @@
 
 | 포트 | 현재 어댑터 | 차후 교체 |
 |------|-----------|---------|
-| `OmrPort` | `AudiverisAdapter` | SMT/SMT++ (트랜스포머 폴리포닉) |
+| `OmrPort` | `AudiverisAdapter` | **DL-OMR 어댑터** (딥러닝, 찬송가 지도학습) |
 | `ScoreParserPort` | `Music21Parser` | — |
 | `SvsPort` | `VowelSynthAdapter` (포먼트+성악가 특성) | `LyricSingingAdapter` (2단계) |
 | `MixerPort` | `Mixer` | — |
@@ -181,17 +181,45 @@ queued
 
 ---
 
-## 5. OMR 엔진 선택 배경
+## 5. OMR 엔진 비교 및 진단
+
+### 엔진 비교
 
 | 엔진 | 특징 | 결론 |
 |------|------|------|
 | **oemer** | 빠름, 단성부 전용(2-track 가정) | 밀집형 SATB 크래시 → 단성부 전용 강등 |
-| **Audiveris** | OSS/Java, 로컬, MusicXML, SATB 지원 | **채택** (저해상도 전처리 필수) |
-| SMT/SMT++ | 트랜스포머 폴리포닉, 고천장 | 장기 백로그 |
-| 상용(PlayScore 등) | 정확도 높음 | 외부 전송(규칙 위반) → 자동 제외 |
+| **Audiveris** | OSS/Java, 로컬, MusicXML, SATB 지원 | 채택했으나 정확도 한계 — DL로 교체 예정 |
+| SMT/SMT++ | 트랜스포머 폴리포닉, 고천장 | 차세대 DL-OMR 후보 |
+| 상용(PlayScore 등) | 정확도 높음 | 외부 전송(규칙 §16 위반) → 자동 제외 |
+| **DL-OMR (자체)** | 찬송가 특화, 지도학습, 로컬 | **개발 예정** — 설계 문서 참조 |
 
 **핵심 발견:** 원본 500×777px 이미지는 Audiveris도 실패 (interline 6px).  
 → **3× LANCZOS 업스케일 전처리** 후 OMR 성공. `preprocess.py`가 자동 처리.
+
+### Audiveris 정확도 실측 결과 (2026-06-19)
+
+찬송가 315장 소프라노 파트 기준 심층 진단:
+
+| 항목 | 수치 |
+|------|------|
+| 정답 음표 수 | 52음 |
+| 검출 음표 수 | 34음 |
+| **검출률** | **65%** |
+| 전체 누락 마디 | m1, m6, m11, m16 (4개 — 각 악절 첫 마디) |
+| 피치 오인식 | m2(D5→정답A), m3(G5→정답Bb) 등 다수 |
+
+**Audiveris MXL 파트 구조:**
+```
+Part 0 (Voice / 트레블): 소프라노+알토 혼합
+  → 마디별로 Voice1/Voice2 혼재 (불규칙)
+  → 일부 마디는 flat notesAndRests, 일부는 Voice 구조
+Part 1 (Voice / 베이스): 테너+베이스 혼합
+```
+
+**근본 원인:** Audiveris가 각 악절 시작 마디의 음표를 완전히 미인식.  
+파서 수정으로는 해결 불가 → **DL 기반 OMR 재개발 결정**.
+
+→ 설계 문서: [`docs/superpowers/specs/2026-06-19-dl-omr-design.md`](superpowers/specs/2026-06-19-dl-omr-design.md)
 
 ---
 
@@ -234,15 +262,22 @@ queued
 
 ---
 
-## 8. 구현 이력 추가 (2026-06-18)
+## 8. 구현 이력 (전체)
 
 | 날짜 | 작업 | 산출물 |
 |------|------|--------|
+| 2026-06-16 | 프로젝트 설계 · 헥사고날 아키텍처 확정 | `docs/superpowers/specs/`, `CLAUDE.md` |
+| 2026-06-16 | 빈 스캐폴딩 + `ports.py` 동결 | 디렉터리 구조, `domain/ports.py` |
+| 2026-06-16~17 | **1단계 파이프라인** TDD 구현 | 16 tests, `feat/stage1-vowel-choir` → main |
+| 2026-06-17 | OMR 실측 검증 — oemer SATB 크래시 확인 | oemer 한계 발견, Audiveris 필요성 확정 |
+| 2026-06-17 | **Audiveris OMR** 빌드·실측·TDD 구현 | 24 tests, E2E 18s WAV, `feat/audiveris-omr` → main |
 | 2026-06-18 | **품질 개선 5종** | 33 tests, `feat/quality-improvements` → main |
 | 2026-06-18 | **웹 프론트엔드** (Next.js + OSMD) | 업로드·폴링·악보렌더·오디오, `feat/frontend` → main |
-| 2026-06-18 | **4성부 화음 분리 + 성악 합성 개선** | `feat/vocal-quality` 진행 중 |
-| 2026-06-18 | **OMR 정확도 실측** | 315.JPG 커버리지 29%·정확도 27% — 고해상도 재검증 필요 |
+| 2026-06-18 | **성악 품질 개선** (4성부 분리, 포먼트+비브라토) | `feat/vocal-quality` → main |
+| 2026-06-18 | **악보 메타 API + 웹 UI 개선** | `/meta` `/image` 엔드포인트, 성부별 플레이어, 악보+음표 비교 뷰 |
 | 2026-06-18 | **모바일 앱 설계** (React Native + Expo) | 계획서 11 Tasks 작성 완료 |
+| 2026-06-19 | **OMR 심층 진단** — MXL 파트 구조 분석 | 315장 소프라노 65% 정확도, 4마디 전체 누락 확인 |
+| 2026-06-19 | **DL-OMR 재설계 방향 확정** | 설계 문서 `2026-06-19-dl-omr-design.md` |
 
 ## 9. 모바일 앱 아키텍처
 

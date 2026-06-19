@@ -7,7 +7,8 @@ from fastapi import APIRouter, UploadFile, File, BackgroundTasks, HTTPException
 from fastapi import Path as FPath
 from fastapi.responses import FileResponse, JSONResponse
 from PIL import Image, UnidentifiedImageError
-from app.api.schemas import JobCreated, JobState
+from app.api.schemas import JobCreated, JobState, ScoreMeta
+from app.core.score_meta import extract_meta
 from app.storage.store import store
 from app.orchestration.job import Job, JobStatus
 from app.orchestration.orchestrator import Stage1Orchestrator
@@ -100,3 +101,23 @@ def get_timing(job_id: str) -> JSONResponse:
     if not job.timing_path or not Path(job.timing_path).exists():
         raise HTTPException(404, "timing not ready")
     return JSONResponse(json.loads(Path(job.timing_path).read_text()))
+
+@router.get("/jobs/{job_id}/image")
+def get_image(job_id: str) -> FileResponse:
+    path = store._root / job_id / "input.png"
+    if not path.exists():
+        raise HTTPException(404, "원본 이미지 없음")
+    return FileResponse(str(path), media_type="image/png")
+
+@router.get("/jobs/{job_id}/meta", response_model=ScoreMeta)
+def get_meta(job_id: str) -> ScoreMeta:
+    job = store.get(job_id)
+    if not job:
+        raise HTTPException(404, "job not found")
+    if not job.score_path or not Path(job.score_path).exists():
+        raise HTTPException(404, "악보 미생성")
+    try:
+        data = extract_meta(Path(job.score_path))
+        return ScoreMeta(**data)
+    except Exception as e:
+        raise HTTPException(500, f"메타 추출 실패: {e}")

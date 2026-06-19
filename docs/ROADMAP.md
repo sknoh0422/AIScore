@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](superpowers/specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-06-18 (4차)
+**최종 갱신:** 2026-06-19 (5차)
 
 ---
 
@@ -33,16 +33,14 @@
   - 실행: `uvicorn app.main:app --reload` (포트 8000) + `npm run dev` (포트 3000)
 
 ## ⏳ 대기 / 검증 필요
-
-## ⏳ 대기 / 검증 필요
-- **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 음표 커버리지 29%, 피치 정확도 27% 확인. 300 DPI 스캔본 업로드 후 재검증 필요.
-- **프론트엔드 브라우저 실증** — Next.js 웹 앱 실제 악보 업로드 → 음원 재생 확인 필요.
+- **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 소프라노 검출 34/52음(65%), 4개 마디 전체 누락. 300 DPI 스캔본으로 재검증 필요.
+- **DL-OMR 재설계 착수** — 설계 문서 완료([DL-OMR 설계](superpowers/specs/2026-06-19-dl-omr-design.md)), 구현 계획 작성 필요.
 
 ## 📋 예정 (우선순위순)
-- **모바일 앱 (React Native + Expo)** — 계획서 완료. 백엔드 API 확장(Task 1~2) → 모바일 화면(Task 3~10). [계획서](superpowers/plans/2026-06-18-mobile-app.md)
-- **2단계 가사** — 가사 소스(텍스트 입력 기본/OCR 보조) + 음절↔음표 정렬 + 가사 가창 SVS 어댑터.
-- **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(플라이휠).
-- **트랙 B(오프라인)** — 누적 라벨로 한글 OCR 지도학습(`training/`).
+- **DL 기반 OMR 재설계** — 딥러닝으로 처음부터. 찬송가/악보 앱 데이터로 지도학습. 설계: [2026-06-19-dl-omr-design.md](superpowers/specs/2026-06-19-dl-omr-design.md)
+- **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(DL 학습 데이터 플라이휠).
+- **모바일 앱 (React Native + Expo)** — 계획서 완료. [계획서](superpowers/plans/2026-06-18-mobile-app.md)
+- **2단계 가사** — 텍스트 입력/OCR + 음절↔음표 정렬 + 가사 가창 SVS.
 
 ---
 
@@ -101,9 +99,20 @@
 - **성악 합성 품질 개선** (`vowel_synth_adapter.py`) — 포먼트 IIR 필터 + 성부별 비브라토(Fleming/Ferrier/Pavarotti/Ramey 모델). timing.json BPM과 오디오 BPM 동기화.
 - **timing.json** — `core/timing.py`(횡단 유틸)로 이동(레이어 위반 해소). 성부별 음표 시작/종료 시각 JSON + `GET /timing` 엔드포인트.
 - **성부별 WAV 엔드포인트** — `GET /jobs/{id}/audio/{voice}` 추가.
-- **OMR 정확도 실측** — 315.JPG(500×777px): 음표 커버리지 29%, 피치 정확도 27%. 저해상도 한계. 300 DPI 재검증 예정.
+- **악보 메타 API** — `core/score_meta.py` 신설. `GET /jobs/{id}/meta` → 조성·박자·성부·소프라노 음표 JSON. `GET /jobs/{id}/image` → 원본 이미지 서빙.
+- **웹 UI 개선** — 성부별 오디오 플레이어(S/A/T/B), 원본 악보 이미지 + 소프라노 음표 나란히 표시(4마디/줄, 세로선 구분, 불완전 마디 레이블).
+- **OMR 정확도 실측** — 315.JPG(500×777px): 소프라노 34/52음 검출(65%). 4개 마디(m1,m6,m11,m16) 전체 누락. 저해상도 한계.
 - **모바일 앱 설계 확정** — React Native+Expo. 계획서 `2026-06-18-mobile-app.md` 완료.
 - `feat/vocal-quality` → main squash 머지 완료.
+
+### 2026-06-19 (OMR 심층 진단 + DL-OMR 재설계 방향 확정)
+- **OMR 심층 진단** — MusicXML 파트 구조 직접 덤프 분석:
+  - Audiveris 출력: Part 0(treble S+A), Part 1(bass T+B), 각 마디에 Voice1/Voice2 혼재.
+  - 315장 소프라노 정답(52음) vs 검출(34음): 정답률 65%. **핵심 오류는 각 악절 첫 마디(m1,m6,m11,m16) 전체 누락** — 파서 문제가 아닌 Audiveris OMR 자체 미인식.
+  - m2=D5(정답 A), m3=G5(정답 Bb) 등 피치 오인식도 다수.
+  - 결론: **Audiveris 튜닝으로는 근본 해결 불가**. 재설계 필요.
+- **DL-OMR 재설계 방향 확정** — 딥러닝 기반 OMR을 처음부터 개발. 찬송가·악보 앱 데이터로 지도학습. 헥사고날 아키텍처의 `OmrPort` 어댑터 교체점 활용.
+- 설계 문서: [`docs/superpowers/specs/2026-06-19-dl-omr-design.md`](superpowers/specs/2026-06-19-dl-omr-design.md) 작성.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 

@@ -14,3 +14,14 @@ class JobState(BaseModel):
     score_path: str | None = None
     voice_paths: dict[str, str] = {}
     timing_path: str | None = None
+
+class NoteInfo(BaseModel):
+    solfege: str
+    pitch: str | None
+    measure: int | None
+
+class ScoreMeta(BaseModel):
+    key: str
+    time: str
+    parts: list[str]
+    soprano_notes: list[NoteInfo]
