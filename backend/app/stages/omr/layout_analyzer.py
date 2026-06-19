@@ -81,6 +81,7 @@ def _group_into_systems(line_ys: list[int], image_w: int) -> list[StaffSystem]:
     # 5개씩 묶어 보표 시스템 구성
     systems: list[StaffSystem] = []
     i = 0
+    staff_idx = 0
     while i + 4 < len(line_centers):
         five = line_centers[i:i + 5]
         spacing = (five[-1] - five[0]) / 4
@@ -94,11 +95,14 @@ def _group_into_systems(line_ys: list[int], image_w: int) -> list[StaffSystem]:
             continue
         top_y = five[0] - int(spacing)
         bot_y = five[-1] + int(spacing)
+        # SATB 찬송가: 짝수 보표(0,2,4,...)는 treble, 홀수(1,3,5,...)는 bass
+        clef = "treble" if staff_idx % 2 == 0 else "bass"
         systems.append(StaffSystem(
             bbox=BBox(x=0, y=max(0, top_y), w=image_w, h=bot_y - top_y),
             line_ys=five,
-            clef="treble",  # Task 5에서 YOLOv8 검출 후 교체
+            clef=clef,  # Task 5에서 YOLOv8 검출 후 교체
         ))
+        staff_idx += 1
         i += 5
 
     return systems

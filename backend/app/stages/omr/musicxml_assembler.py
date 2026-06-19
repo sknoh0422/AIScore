@@ -68,8 +68,8 @@ def assemble(
                 for v_i, syllables in enumerate(verse_syllables, 1):
                     if note_idx < len(syllables):
                         n_obj.addLyric(syllables[note_idx], lyricNumber=v_i)
+                note_idx += 1  # Note에만 인덱스 증가 (Rest는 가사 소비 안 함)
             part.append(n_obj)
-            note_idx += 1
 
         score.append(part)
 

@@ -23,7 +23,7 @@ def test_extract_lyrics_returns_lyrics_result():
     gray = np.full((800, 600), 230, dtype=np.uint8)
     regions = [BBox(0, 500, 600, 50), BBox(0, 560, 600, 50)]
     mock_ocr = MagicMock()
-    mock_ocr.return_value = [[("주님의 사랑", 0.95)]]
+    mock_ocr.return_value = [[[None, ("주님의 사랑", 0.95)]]]
     with patch("app.stages.omr.lyrics_ocr._get_ocr_engine", return_value=mock_ocr):
         result = extract_lyrics(gray, regions)
     assert isinstance(result, LyricsResult)

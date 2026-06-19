@@ -45,7 +45,7 @@ def extract_lyrics(gray: np.ndarray, regions: list[BBox]) -> LyricsResult:
             verses.append([])
             continue
         results = ocr(crop)
-        text = " ".join(r[0] for r in results[0]) if results and results[0] else ""
+        text = " ".join(r[1][0] for r in results[0]) if results and results[0] else ""
         verses.append(split_syllables(text))
 
     return LyricsResult(verses=verses)
