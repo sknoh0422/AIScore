@@ -26,3 +26,15 @@ def omr_min_long_edge() -> int:
         return int(os.environ.get("AISCORE_OMR_MIN_LONG_EDGE", "2000"))
     except ValueError:
         return 2000
+
+def omr_model_path() -> Path | None:
+    """YOLOv8 OMR 모델 경로. 환경변수 미설정 시 기본 경로 반환."""
+    env = os.environ.get("AISCORE_OMR_MODEL_PATH")
+    if env:
+        return Path(env)
+    default = _REPO / "models" / "omr" / "best.pt"
+    return default if default.exists() else None
+
+def paddleocr_lang() -> str:
+    """PaddleOCR 언어 설정. 기본값 'korean'."""
+    return os.environ.get("AISCORE_PADDLEOCR_LANG", "korean")
