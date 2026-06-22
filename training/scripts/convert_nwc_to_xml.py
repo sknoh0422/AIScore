@@ -580,8 +580,13 @@ def _fix_xml_issues(xml_bytes: bytes) -> bytes:
     # C: M7 (split-voice 마디) 수정
     def fix_m7(m):
         block = m.group(0)
-        # C1: fill rest 유지 — print-object="no" 상태로 두면 MuseScore가 숨김 처리
-        #     제거하면 MuseScore가 자동으로 visible rest를 채워 넣으므로 제거하지 않음
+        # C1: Voice2(소프라노) fill rest 제거 — MuseScore에서 회색으로 표시되므로 삭제
+        #     Voice1(알토) fill rest는 backup 위치 정합성을 위해 유지
+        block = re.sub(
+            r'\s*<note print-object="no"[^>]*>\s*<rest\s*/>\s*<duration>[^<]*</duration>\s*'
+            r'<voice>2</voice>.*?</note>',
+            '', block, flags=re.DOTALL
+        )
         # C2: 줄기 방향 — Voice1(알토,낮음)=down, Voice2(소프라노,높음)=up
         block = block.replace('<voice>1</voice>', '<voice>1</voice>\n        <stem>down</stem>')
         block = block.replace('<voice>2</voice>', '<voice>2</voice>\n        <stem>up</stem>')
