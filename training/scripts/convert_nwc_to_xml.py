@@ -580,34 +580,14 @@ def _fix_xml_issues(xml_bytes: bytes) -> bytes:
     # C: M7 (split-voice 마디) 수정
     def fix_m7(m):
         block = m.group(0)
-        # C1: Voice2(소프라노) fill rest 제거 — MuseScore 회색 표시 방지
-        #     Voice1 fill rest는 backup(40320) 정합성 유지를 위해 그대로 둠
-        block = re.sub(
-            r'\s*<note print-object="no"[^>]*>\s*<rest\s*/>\s*<duration>[^<]*</duration>\s*'
-            r'<voice>2</voice>.*?</note>',
-            '', block, flags=re.DOTALL
-        )
-        # C1b: split-voice 마디(Part1)는 V2 fill rest 제거로 cursor가 30240에서 끝나므로
-        #      <forward> 으로 40320까지 보정 → Part2(40320)와 수직 정렬 맞춤
-        if '<voice>' in block:
-            block = re.sub(
-                r'(\s*</measure>)',
-                '\n      <forward>\n        <duration>10080</duration>\n      </forward>\\1',
-                block
-            )
+        # C1: fill rest 유지 — print-object="no"로 cursor=40320 정합성 보존
+        #     (forward 사용 시 MuseScore 정렬 불안정, fill rest 복원이 안전)
         # C2: 줄기 방향 — Voice1(알토,낮음)=down, Voice2(소프라노,높음)=up
         block = block.replace('<voice>1</voice>', '<voice>1</voice>\n        <stem>down</stem>')
         block = block.replace('<voice>2</voice>', '<voice>2</voice>\n        <stem>up</stem>')
-        # C3: D♭ 명시적 내림표 추가 — 소프라노(D♭5) + 베이스(D♭3)
+        # C3: D♭ 명시적 내림표 추가 — 소프라노(D♭5) + 베이스(D♭3) 아래음만
         block = re.sub(
             r'(<step>D</step>\s*<alter>-1</alter>\s*<octave>\d</octave>.*?<type>quarter</type>)',
-            r'\1\n        <accidental>flat</accidental>',
-            block, flags=re.DOTALL
-        )
-        # C4: D♭ 직후 chord note(A♭3)에도 내림표 추가
-        block = re.sub(
-            r'(<accidental>flat</accidental>\s*</note>\s*<note>\s*<chord\s*/>\s*'
-            r'<pitch>\s*<step>[^<]+</step>\s*<alter>-1</alter>.*?<type>quarter</type>)',
             r'\1\n        <accidental>flat</accidental>',
             block, flags=re.DOTALL
         )
