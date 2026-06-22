@@ -1,9 +1,9 @@
 # AIScore 로드맵 / 진행 상태
 
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
-> 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](superpowers/specs/2026-06-16-aiscore-design.md).
+> 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-06-19 (5차)
+**최종 갱신:** 2026-06-22 (6차)
 
 ---
 
@@ -16,14 +16,14 @@
 ---
 
 ## ✅ 완료
-- **프로젝트 설계 확정** — [설계 문서](superpowers/specs/2026-06-16-aiscore-design.md) (헥사고날, 1/2단계 로드맵, 트랙B)
+- **프로젝트 설계 확정** — [설계 문서](specs/2026-06-16-aiscore-design.md) (헥사고날, 1/2단계 로드맵, 트랙B)
 - **CLAUDE.md** — 이중 오케스트레이션·레이어·라우팅·병렬화·절대규칙 20
 - **스캐폴딩** — backend/frontend/training 구조, 동결된 `backend/app/domain/ports.py`
 - **1단계 파이프라인 (image→OMR→SATB→모음"우"→믹싱)** — main 통합 완료, 단위 테스트 16 passed
-  - 계획: [1단계 계획](superpowers/plans/2026-06-16-stage1-vowel-choir.md)
+  - 계획: [1단계 계획](plans/2026-06-16-stage1-vowel-choir.md)
   - 구현: OMR(oemer)·파싱(music21)·SVS(VowelSynth)·믹싱 어댑터 + 오케스트레이터(4성부 병렬) + FastAPI 잡 API
 - **Audiveris OMR 스테이지 (image→Audiveris→N성부)** — main 통합 완료, 단위 24 passed + E2E(315.JPG→choir.wav 18s) 검증
-  - 계획: [Audiveris 계획](superpowers/plans/2026-06-17-audiveris-omr.md)
+  - 계획: [Audiveris 계획](plans/2026-06-17-audiveris-omr.md)
   - 구현: 전처리(업스케일) + `audiveris_adapter`(JDK25 배치) + `part×voice` 무손실 파서 + 존재 성부만 합성 + 업로드 검증. 실제 SATB는 트레블/베이스 2성부 가이드(완전 4성부는 교정 영역).
 - **품질 개선 5종** — 33 passed, main 통합 완료 (`716cad9`)
   - ParseError 추가 + 파서 0-파트 방어 / 업로드 OOM 방어(`read(_MAX_BYTES+1)`) / 믹서 스테레오→모노 변환+samplerate 수정 / Store 격리(root 파라미터+reset, conftest autouse) / test_ports.py 포트 계약 테스트 5종 / pyproject.toml integration 마크 기본 제외
@@ -31,35 +31,37 @@
   - Next.js 15 + Tailwind v4 + TypeScript 5. 업로드 홈(드래그&드롭) → 잡 페이지(2초 폴링+진행 바+오디오 플레이어+OSMD 악보 렌더)
   - 백엔드 추가: CORS, score_path 추적, `/audio` · `/score` FileResponse 엔드포인트
   - 실행: `uvicorn app.main:app --reload` (포트 8000) + `npm run dev` (포트 3000)
+- **Score Understanding Pipeline (DL-OMR 5모듈)** — main 머지 완료 (`e50e493`, 2026-06-22), 88 passed
+  - 계획: [파이프라인 계획](plans/2026-06-19-score-understanding-pipeline.md)
+  - 설계: [파이프라인 설계](specs/2026-06-19-score-understanding-pipeline-design.md)
+  - 구현: 전처리 → 레이아웃 분석 → YOLOv8 OMR 엔진 → 메타 추출 → 가사 OCR(PaddleOCR) → MusicXML 조립 → `ScoreUnderstandingAdapter(OmrPort)`
+  - 현재 상태: YOLOv8 모델 미학습(더미 패스스루). 다음 단계 = 모델 학습(Plan 1B)
+- **MD 파일 체계 재구성** — `docs/superpowers/` 제거, `docs/plans/` · `docs/specs/` · `raw/project_start.md` 정착
 
 ## ⏳ 대기 / 검증 필요
 - **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 소프라노 검출 34/52음(65%), 4개 마디 전체 누락. 300 DPI 스캔본으로 재검증 필요.
-- **DL-OMR 재설계 착수** — 설계 문서 완료([DL-OMR 설계](superpowers/specs/2026-06-19-dl-omr-design.md)), 구현 계획 작성 필요.
 
 ## 📋 예정 (우선순위순)
 
-### 🔴 최우선: 이미지 OMR / OCR 정확도 향상
+### 🔴 최우선: Plan 1B — YOLOv8 모델 학습
 
-> **현재 상태:** Audiveris 기반 OMR의 소프라노 음표 검출 정확도 **65%** (52음 중 34음), 악절 시작 마디 4개 전체 누락. 이 문제가 해결되지 않으면 후속 모든 기능(가사 정렬, 교정, 모바일 연습)의 품질이 근본적으로 제한된다.
-
-**왜 최우선인가:**
-- AIScore의 핵심 가치는 "악보 이미지를 인식해서 합창"하는 것 — OMR이 틀리면 합창도 틀림
-- 현재 파이프라인은 동작하지만 출력 품질이 실사용 수준 미달
-- 교정 데이터, 가사 정렬, 모바일 앱 모두 정확한 음표 인식을 전제로 함
-
-**개발 방향 (DL 기반 재설계):**
-- 규칙 기반(Audiveris) → 딥러닝 기반 OMR으로 전환
-- 찬송가·악보 앱 데이터로 지도학습 (합성 데이터 우선)
-- 단계: YOLOv8 음표 검출 → SMT++ 파인튜닝 → E2E 트랜스포머
-- 헥사고날 아키텍처의 `OmrPort` 어댑터 교체점 활용 (오케스트레이터 무수정)
-- 설계 문서: [2026-06-19-dl-omr-design.md](superpowers/specs/2026-06-19-dl-omr-design.md)
+> **현재 상태:** Score Understanding Pipeline 파이프라인 코드 완성. YOLOv8 모델 미학습 상태(더미 패스스루). 모델 학습이 완료되어야 실제 OMR 정확도가 나온다.
 
 **목표 정확도:** 소프라노 검출률 ≥ 90%, 피치 정확도 ≥ 95%, 마디 전체 누락 0
+
+**Plan 1B 태스크 (브레인스토밍 → 설계 → 계획 필요):**
+1. Lilypond 렌더링 스크립트 — `training/scripts/render_scores.py` (MusicXML → 악보 이미지 + 레이블 자동 생성)
+2. YOLO 포맷 레이블 생성 — `training/scripts/generate_labels.py`
+3. YOLOv8 파인튜닝 — DeepScores V2 사전학습 → 찬송가 데이터 파인튜닝
+4. PaddleOCR 한국어 파인튜닝 — 찬송가 가사 GT 데이터
+5. 평가 스크립트 — Audiveris 65% 기준선 대비 측정
+
+**설계 문서:** [DL-OMR 설계](specs/2026-06-19-dl-omr-design.md)
 
 ---
 
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(DL 학습 데이터 플라이휠).
-- **모바일 앱 (React Native + Expo)** — 계획서 완료. [계획서](superpowers/plans/2026-06-18-mobile-app.md)
+- **모바일 앱 (React Native + Expo)** — 계획서 완료. [계획서](plans/2026-06-18-mobile-app.md)
 - **2단계 가사** — 텍스트 입력/OCR + 음절↔음표 정렬 + 가사 가창 SVS.
 
 ---
@@ -124,6 +126,15 @@
 - **OMR 정확도 실측** — 315.JPG(500×777px): 소프라노 34/52음 검출(65%). 4개 마디(m1,m6,m11,m16) 전체 누락. 저해상도 한계.
 - **모바일 앱 설계 확정** — React Native+Expo. 계획서 `2026-06-18-mobile-app.md` 완료.
 - `feat/vocal-quality` → main squash 머지 완료.
+
+### 2026-06-22 (Score Understanding Pipeline 머지 + MD 체계 정리)
+- **Score Understanding Pipeline** (`feat/score-understanding-pipeline`) → main 머지 완료.
+  - 12커밋, 25파일, 1299줄 추가. 88 tests passed.
+  - 5모듈: 전처리 → 레이아웃 → YOLOv8 엔진 → 메타 → 가사OCR → MusicXML 조립.
+  - `ScoreUnderstandingAdapter`가 `OmrPort` 구현 — 오케스트레이터 무수정.
+  - 버그 수정: PaddleOCR 포맷(`r[0]`→`r[1][0]`), 가사 인덱스(Rest 건너뜀), 베이스 클레프 교번.
+- **MD 파일 체계 재구성** — `docs/superpowers/` 제거, `ARCHITECTURE.md` → `CLAUDE.md` 통합, `raw/project_start.md` 추가(범용 개발 방법론 + SDD 실제 루프 + Q&A 핵심 결정 기록).
+- **다음:** Plan 1B 브레인스토밍 → YOLOv8 모델 학습.
 
 ### 2026-06-19 (OMR 심층 진단 + DL-OMR 재설계 방향 확정)
 - **OMR 심층 진단** — MusicXML 파트 구조 직접 덤프 분석:
