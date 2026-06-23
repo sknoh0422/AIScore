@@ -79,7 +79,7 @@ class _NoteVocab:
 # ── Model (training/scripts/train_omr.py OmrCRNN 와 동일 아키텍처) ─────────────
 
 class _OmrCRNN:
-    """ResNet18 인코더 + 4성부 독립 BiLSTM CTC 헤드. 지연 import 로 torch 없이도 클래스 정의 가능."""
+    """ResNet18 인코더 + 4성부 독립 BiLSTM CTC 헤드."""
 
     def __new__(cls, vocab_size: int):  # type: ignore[override]
         import torch.nn as nn
@@ -95,7 +95,7 @@ class _OmrCRNN:
                 self.lstm = nn.LSTM(512, 256, num_layers=2, bidirectional=True, batch_first=True)
                 self.heads = nn.ModuleDict({v: nn.Linear(512, vocab_size) for v in VOICE_ORDER})
 
-            def forward(self, x):
+            def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
                 feat = self.encoder(x)
                 feat = self.pool_h(feat).squeeze(2).permute(0, 2, 1)
                 out, _ = self.lstm(feat)
@@ -151,7 +151,7 @@ class DlOmrAdapter:
 
         if model_path is not None and model_path.exists():
             import torch
-            ckpt = torch.load(model_path, map_location="cpu")
+            ckpt = torch.load(model_path, map_location="cpu", weights_only=False)  # vocab_tok2idx dict 포함으로 False 필요; 경로는 설정값만 허용
             model = _OmrCRNN(self._vocab.size)
             model.load_state_dict(ckpt["model_state"])
             model.eval()
