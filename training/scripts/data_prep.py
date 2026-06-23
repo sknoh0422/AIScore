@@ -9,7 +9,9 @@ from pathlib import Path
 import music21 as m21
 from sklearn.model_selection import train_test_split
 
-from training.scripts.crop_staves import find_system_boundaries, crop_system
+from PIL import Image
+
+from training.scripts.crop_staves import find_system_boundaries, crop_system, detect_staves
 
 log = logging.getLogger(__name__)
 
@@ -149,6 +151,116 @@ def build_system_crops(
     return items
 
 
+STAFF_IMG_H = 64
+STAFF_IMG_W = 1600
+TREBLE_VOICES = ("S", "A")
+BASS_VOICES   = ("T", "B")
+
+
+def build_staff_crops(
+    out_dir: Path = OUT_DIR,
+) -> list[dict]:
+    """기존 시스템 단위 크롭 → treble/bass 스태프 크롭 생성 + splits.json 재빌드.
+
+    각 시스템 크롭마다:
+      - hymn{id}_s{n}_treble.png  (H=64, W=1600)  + 라벨 (S+A 성부)
+      - hymn{id}_s{n}_bass.png    (H=64, W=1600)  + 라벨 (T+B 성부)
+
+    Returns:
+        스태프별 {"hymn_id", "system", "staff", "label_path"} 목록
+    """
+    labels_dir      = out_dir / "labels"
+    sys_labels_dir  = labels_dir
+    staff_labels_dir = labels_dir / "staff"
+    staff_crops_dir  = out_dir / "crops" / "staff"
+    staff_labels_dir.mkdir(parents=True, exist_ok=True)
+    staff_crops_dir.mkdir(parents=True, exist_ok=True)
+
+    sys_label_files = sorted(sys_labels_dir.glob("hymn*_s*.json"))
+    if not sys_label_files:
+        log.warning("시스템 라벨 없음: %s", sys_labels_dir)
+        return []
+
+    items: list[dict] = []
+    skipped = 0
+
+    for lp in sys_label_files:
+        sys_label = json.loads(lp.read_text(encoding="utf-8"))
+        crop_path = Path(sys_label["image_path"])
+        if not crop_path.exists():
+            log.warning("크롭 없음, skip: %s", crop_path)
+            skipped += 1
+            continue
+
+        try:
+            treble_bbox, bass_bbox = detect_staves(crop_path)
+        except Exception as e:
+            log.warning("detect_staves 실패(%s): %s", crop_path.name, e)
+            skipped += 1
+            continue
+
+        hymn_id = sys_label["hymn_id"]
+        sys_idx = sys_label["system"]
+        base    = {"time_signature": sys_label["time_signature"],
+                   "key_signature":  sys_label["key_signature"]}
+
+        for staff_key, bbox, voices in (
+            ("treble", treble_bbox, TREBLE_VOICES),
+            ("bass",   bass_bbox,   BASS_VOICES),
+        ):
+            y0, y1 = bbox
+            img = Image.open(crop_path).convert("RGB")
+            region = img.crop((0, y0, img.width, y1))
+            region = region.resize((STAFF_IMG_W, STAFF_IMG_H), Image.LANCZOS)
+
+            img_name   = f"hymn{hymn_id}_s{sys_idx}_{staff_key}.png"
+            label_name = f"hymn{hymn_id}_s{sys_idx}_{staff_key}.json"
+            img_out    = staff_crops_dir  / img_name
+            label_out  = staff_labels_dir / label_name
+
+            region.save(str(img_out))
+
+            staff_label = {
+                **base,
+                "hymn_id":    hymn_id,
+                "system":     sys_idx,
+                "staff":      staff_key,
+                "image_path": str(img_out),
+                "measures": [
+                    {
+                        "measure_num": m["measure_num"],
+                        **{v: m[v] for v in voices},
+                    }
+                    for m in sys_label["measures"]
+                ],
+            }
+            label_out.write_text(
+                json.dumps(staff_label, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            items.append({
+                "hymn_id":    hymn_id,
+                "system":     sys_idx,
+                "staff":      staff_key,
+                "label_path": str(label_out),
+            })
+
+    log.info(
+        "스태프 크롭 완료: 시스템 %d개 → 스태프 %d개 (skip %d)",
+        len(sys_label_files), len(items), skipped,
+    )
+
+    if len(items) >= 20:
+        splits = split_dataset(items)
+    else:
+        splits = {"train": items, "val": [], "test": []}
+
+    splits_path = out_dir / "splits_staff.json"
+    splits_path.write_text(json.dumps(splits, ensure_ascii=False, indent=2), encoding="utf-8")
+    log.info("splits_staff.json 저장: train=%d val=%d test=%d",
+             len(splits["train"]), len(splits["val"]), len(splits["test"]))
+    return items
+
+
 def build_dataset(
     png_dir: Path = PNG_DIR,
     xml_dir: Path = XML_DIR,
@@ -188,5 +300,12 @@ def build_dataset(
 
 
 if __name__ == "__main__":
+    import argparse
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    build_dataset()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--staff", action="store_true", help="기존 시스템 크롭 → 스태프 크롭 생성")
+    args = ap.parse_args()
+    if args.staff:
+        build_staff_crops()
+    else:
+        build_dataset()

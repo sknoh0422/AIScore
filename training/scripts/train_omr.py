@@ -22,15 +22,25 @@ log = logging.getLogger(__name__)
 
 # ── 경로 상수 ──────────────────────────────────────────────────────────────────
 _REPO_ROOT  = Path(__file__).resolve().parents[2]
-SPLITS_PATH = _REPO_ROOT / "training/data/splits.json"
-LABELS_DIR  = _REPO_ROOT / "training/data/labels"
-MODELS_DIR  = _REPO_ROOT / "training/models"
+SPLITS_PATH       = _REPO_ROOT / "training/data/splits.json"
+SPLITS_STAFF_PATH = _REPO_ROOT / "training/data/splits_staff.json"
+LABELS_DIR        = _REPO_ROOT / "training/data/labels"
+MODELS_DIR        = _REPO_ROOT / "training/models"
 
 VOICE_ORDER = ("S", "A", "T", "B")
+TREBLE_VOICES = ("S", "A")
+BASS_VOICES   = ("T", "B")
+
+# 구형 시스템-레벨 모델 설정
 IMG_W, IMG_H = 2048, 128  # landscape, T = 2048/16 = 128 frames
 BATCH_SIZE   = 8
 EPOCHS       = 30
 LR           = 1e-4
+
+# 신형 스태프-레벨 모델 설정
+STAFF_IMG_W  = 1600
+STAFF_IMG_H  = 64
+STAFF_BATCH  = 8
 
 
 # ── Vocabulary ────────────────────────────────────────────────────────────────
@@ -173,6 +183,66 @@ def collate_fn(batch: list[dict]) -> dict:
     }
 
 
+# ── Staff-level Dataset ───────────────────────────────────────────────────────
+
+class StaffDataset(Dataset):
+    """스태프 크롭 이미지 + treble(S+A) 또는 bass(T+B) 노트 시퀀스."""
+
+    def __init__(self, items: list[dict], vocab: NoteVocab) -> None:
+        self._items = items
+        self._vocab = vocab
+        self._transform = T.Compose([
+            T.Grayscale(num_output_channels=3),
+            T.Resize((STAFF_IMG_H, STAFF_IMG_W)),
+            T.ToTensor(),
+            T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
+        ])
+
+    def __len__(self) -> int:
+        return len(self._items)
+
+    def __getitem__(self, idx: int) -> dict:
+        item = self._items[idx]
+        label = json.loads(Path(item["label_path"]).read_text())
+        img = Image.open(label["image_path"]).convert("RGB")
+        img_tensor = self._transform(img)
+
+        staff = label.get("staff", "treble")
+        voices = TREBLE_VOICES if staff == "treble" else BASS_VOICES
+        targets: dict[str, list[int]] = {}
+        for voice in voices:
+            notes = [n for m in label["measures"] for n in m[voice]]
+            targets[voice] = self._vocab.encode(notes)
+
+        return {"image": img_tensor, "targets": targets, "staff": staff,
+                "hymn_id": label["hymn_id"]}
+
+
+def staff_collate_fn(batch: list[dict]) -> dict:
+    images = torch.stack([b["image"] for b in batch])
+    staff = batch[0]["staff"]
+    voices = TREBLE_VOICES if staff == "treble" else BASS_VOICES
+
+    targets: dict[str, list] = {v: [] for v in voices}
+    target_lengths: dict[str, list] = {v: [] for v in voices}
+    for b in batch:
+        for voice in voices:
+            seq = b["targets"][voice]
+            targets[voice].append(torch.tensor(seq, dtype=torch.long))
+            target_lengths[voice].append(len(seq))
+
+    padded = {
+        v: torch.nn.utils.rnn.pad_sequence(targets[v], batch_first=True, padding_value=0)
+        for v in voices
+    }
+    return {
+        "image": images,
+        "targets": padded,
+        "target_lengths": {v: torch.tensor(target_lengths[v]) for v in voices},
+        "staff": staff,
+    }
+
+
 # ── Model ─────────────────────────────────────────────────────────────────────
 
 class OmrCRNN(nn.Module):
@@ -210,6 +280,88 @@ class OmrCRNN(nn.Module):
         for voice in VOICE_ORDER:
             lgt = self.heads[voice](out)  # (B, W', V)
             logits[voice] = lgt.permute(1, 0, 2)  # (W', B, V) for CTC
+        return logits
+
+
+# ── StaffCRNN ─────────────────────────────────────────────────────────────────
+
+def _make_height_preserving_resnet18() -> nn.Module:
+    """ResNet18에서 layer2~4의 첫 conv stride를 (1,2)로 변경.
+
+    기본 stride (2,2) → (1,2): 가로만 다운샘플, H' 보존.
+    입력 H=64 기준: H' = 64/2 = 32 (layer1 stride만 적용).
+    T = W/2 = 1600/2 = 800 → layer1~4 거치면 1600/16=100 frames.
+    """
+    backbone = tv_models.resnet18(weights=tv_models.ResNet18_Weights.DEFAULT)
+    backbone.maxpool = nn.Identity()  # maxpool 제거로 초기 stride 32→16
+
+    for layer in (backbone.layer2, backbone.layer3, backbone.layer4):
+        for module in layer.modules():
+            if isinstance(module, nn.Conv2d) and module.stride == (2, 2):
+                module.stride = (1, 2)
+            if isinstance(module, nn.BatchNorm2d):
+                pass
+        # Residual shortcut도 stride 수정
+        if hasattr(layer[0], "downsample") and layer[0].downsample is not None:
+            for module in layer[0].downsample.modules():
+                if isinstance(module, nn.Conv2d) and module.stride == (2, 2):
+                    module.stride = (1, 2)
+
+    return nn.Sequential(*list(backbone.children())[:-2])
+
+
+class StaffCRNN(nn.Module):
+    """스태프(treble 또는 bass) 단위 CRNN.
+
+    아키텍처:
+      ResNet18 (height-preserving) → (B, 512, H', T')
+      channel_reduce 512→64        → (B, 64,  H', T')
+      flatten_h (B,64,H',T')       → (B, T',  64*H')
+      projection 64*H'→256         → (B, T',  256)
+      BiLSTM 256→512               → (B, T',  512)
+      heads: treble={S,A} or bass={T,B}
+
+    H' 계산 (STAFF_IMG_H=64):
+      Conv1 stride=2 → 32, maxpool=Identity → 32
+      layer2~4 stride=(1,2) → H 그대로 32
+      따라서 C*H = 64*32 = 2048 고정.
+    """
+
+    _PROJ_IN = 64 * 32  # 2048: channel_reduce C × H' at H=64 input
+
+    def __init__(self, vocab_size: int, staff: str) -> None:
+        super().__init__()
+        assert staff in ("treble", "bass")
+        self.staff  = staff
+        self.voices = TREBLE_VOICES if staff == "treble" else BASS_VOICES
+
+        self.encoder        = _make_height_preserving_resnet18()
+        self.channel_reduce = nn.Conv2d(512, 64, kernel_size=1)
+        self.projection     = nn.Linear(self._PROJ_IN, 256)
+        self.lstm = nn.LSTM(
+            input_size=256,
+            hidden_size=256,
+            num_layers=2,
+            bidirectional=True,
+            batch_first=True,
+        )
+        self.heads = nn.ModuleDict({
+            v: nn.Linear(512, vocab_size) for v in self.voices
+        })
+
+    def forward(self, x: torch.Tensor) -> dict[str, torch.Tensor]:
+        feat = self.encoder(x)              # (B, 512, H', T')
+        feat = self.channel_reduce(feat)    # (B, 64,  H', T')
+        B, C, H, TT = feat.shape
+        feat = feat.permute(0, 3, 1, 2)    # (B, T', C, H')
+        feat = feat.reshape(B, TT, C * H)  # (B, T', C*H')
+        feat = self.projection(feat)        # (B, T', 256)
+        out, _ = self.lstm(feat)            # (B, T', 512)
+
+        logits: dict[str, torch.Tensor] = {}
+        for voice in self.voices:
+            lgt = self.heads[voice](out)   # (B, T', V)
+            logits[voice] = lgt.permute(1, 0, 2)  # (T', B, V) for CTC
         return logits
 
 
@@ -329,6 +481,106 @@ def train(epochs: int = EPOCHS) -> None:
     log.info("학습 완료. 최종 val_loss=%.4f", best_val_loss)
 
 
+def train_staff(epochs: int = EPOCHS) -> None:
+    """스태프 크롭 기반 StaffCRNN 학습."""
+    device = get_device()
+    log.info("디바이스: %s", device)
+
+    splits = json.loads(SPLITS_STAFF_PATH.read_text())
+    vocab  = NoteVocab()
+    ctc_loss = nn.CTCLoss(blank=vocab.blank_idx, zero_infinity=True)
+    MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+    for staff in ("treble", "bass"):
+        voices = TREBLE_VOICES if staff == "treble" else BASS_VOICES
+
+        def _filter(items: list[dict]) -> list[dict]:
+            return [i for i in items if i.get("staff") == staff]
+
+        train_ds = StaffDataset(_filter(splits["train"]), vocab)
+        val_ds   = StaffDataset(_filter(splits["val"]),   vocab)
+        train_loader = DataLoader(train_ds, batch_size=STAFF_BATCH, shuffle=True,
+                                  collate_fn=staff_collate_fn, num_workers=0)
+        val_loader   = DataLoader(val_ds,   batch_size=STAFF_BATCH, shuffle=False,
+                                  collate_fn=staff_collate_fn, num_workers=0)
+
+        model     = StaffCRNN(vocab.size, staff).to(device)
+        optimizer = torch.optim.Adam(model.parameters(), lr=LR)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, patience=3)
+        best_val  = float("inf")
+
+        print(f"\n[{staff.upper()} 학습 시작]  train={len(train_ds)}  val={len(val_ds)}", flush=True)
+        print("-" * 60, flush=True)
+
+        import time
+        t_start = time.time()
+
+        for epoch in range(1, epochs + 1):
+            t_ep = time.time()
+            model.train()
+            train_loss = 0.0
+            for batch in train_loader:
+                images = batch["image"].to(device)
+                logits = model(images)
+                T_len  = logits[voices[0]].size(0)
+                inp_len = torch.full((images.size(0),), T_len, dtype=torch.long)
+                loss = torch.tensor(0.0, device=device)
+                for v in voices:
+                    tgt     = batch["targets"][v].to(device)
+                    tgt_len = batch["target_lengths"][v].to(device)
+                    loss    = loss + ctc_loss(logits[v].log_softmax(-1), tgt, inp_len, tgt_len)
+                optimizer.zero_grad()
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+                optimizer.step()
+                train_loss += loss.item()
+
+            model.eval()
+            val_loss = 0.0
+            with torch.no_grad():
+                for batch in val_loader:
+                    images = batch["image"].to(device)
+                    logits = model(images)
+                    T_len  = logits[voices[0]].size(0)
+                    inp_len = torch.full((images.size(0),), T_len, dtype=torch.long)
+                    loss = torch.tensor(0.0, device=device)
+                    for v in voices:
+                        tgt     = batch["targets"][v].to(device)
+                        tgt_len = batch["target_lengths"][v].to(device)
+                        loss    = loss + ctc_loss(logits[v].log_softmax(-1), tgt, inp_len, tgt_len)
+                    val_loss += loss.item()
+
+            avg_train = train_loss / max(len(train_loader), 1)
+            avg_val   = val_loss   / max(len(val_loader), 1)
+            elapsed   = time.time() - t_ep
+            mark = ""
+            if avg_val < best_val:
+                best_val = avg_val
+                ckpt = {
+                    "epoch": epoch, "staff": staff,
+                    "model_state": model.state_dict(),
+                    "vocab_size": vocab.size,
+                    "vocab_tok2idx": vocab._tok2idx,
+                    "val_loss": avg_val,
+                }
+                torch.save(ckpt, MODELS_DIR / f"staff_crnn_{staff}_best.pt")
+                mark = "  ★"
+            print(f"Epoch {epoch:>3}/{epochs}  train={avg_train:.4f}  val={avg_val:.4f}  {elapsed:.0f}s{mark}",
+                  flush=True)
+            scheduler.step(avg_val)
+
+        total_min = (time.time() - t_start) / 60
+        print("-" * 60, flush=True)
+        print(f"[{staff.upper()} 완료]  best_val={best_val:.4f}  총 소요={total_min:.1f}분", flush=True)
+
+
 if __name__ == "__main__":
+    import argparse
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
-    train()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--staff", action="store_true", help="StaffCRNN 학습 (스태프 크롭 기반)")
+    args = ap.parse_args()
+    if args.staff:
+        train_staff()
+    else:
+        train()

@@ -6,7 +6,7 @@ import pytest
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-from training.scripts.crop_staves import find_system_boundaries, crop_system
+from training.scripts.crop_staves import find_system_boundaries, crop_system, detect_staves
 
 
 def _make_hymn_image(num_systems: int = 2, width: int = 800) -> Image.Image:
@@ -110,3 +110,66 @@ def test_crop_height_less_than_original(tmp_path):
     y0, y1 = find_system_boundaries(p)[0]
     cropped = crop_system(p, y0, y1)
     assert cropped.height < img.height
+
+
+# ── detect_staves ────────────────────────────────────────────────────────────
+
+def _make_system_crop(width: int = 800, height: int = 280) -> Image.Image:
+    """treble(상단)·bass(하단) 두 스태프가 있는 시스템 크롭 합성 이미지."""
+    img = Image.new("L", (width, height), color=255)
+    draw = ImageDraw.Draw(img)
+    # treble 스태프: y=30~65 (5선 × 7px 간격)
+    for i in range(5):
+        y = 30 + i * 7
+        draw.line([(0, y), (width - 1, y)], fill=0, width=1)
+    # 음표 (treble 영역에 잉크 분포)
+    for x in range(20, width, 50):
+        draw.ellipse([x - 4, 35, x + 4, 43], fill=0)
+    # bass 스태프: y=190~225
+    for i in range(5):
+        y = 190 + i * 7
+        draw.line([(0, y), (width - 1, y)], fill=0, width=1)
+    # 음표 (bass 영역)
+    for x in range(20, width, 50):
+        draw.ellipse([x - 4, 195, x + 4, 203], fill=0)
+    return img
+
+
+def test_detect_staves_returns_two_bboxes(tmp_path):
+    p = _save_tmp(_make_system_crop(), tmp_path, "system.png")
+    treble, bass = detect_staves(p)
+    assert treble is not None
+    assert bass is not None
+
+
+def test_detect_staves_treble_above_bass(tmp_path):
+    p = _save_tmp(_make_system_crop(), tmp_path, "system.png")
+    treble, bass = detect_staves(p)
+    assert treble[1] < bass[0]  # treble 끝 < bass 시작
+
+
+def test_detect_staves_positive_heights(tmp_path):
+    p = _save_tmp(_make_system_crop(), tmp_path, "system.png")
+    for y0, y1 in detect_staves(p):
+        assert y1 > y0
+        assert y1 - y0 >= 20   # 최소 20px
+
+
+def test_detect_staves_covers_staff_lines(tmp_path):
+    """treble 스태프 선(y=30~65)이 treble bbox 안에 포함되어야 함."""
+    p = _save_tmp(_make_system_crop(), tmp_path, "system.png")
+    treble, bass = detect_staves(p)
+    assert treble[0] <= 30
+    assert treble[1] >= 65
+    assert bass[0] <= 190
+    assert bass[1] >= 225
+
+
+def test_detect_staves_on_real_crop():
+    """실제 크롭 파일로 검증 — 파일 없으면 skip."""
+    real = Path("training/data/crops/hymn068_s1.png")
+    if not real.exists():
+        pytest.skip("실제 크롭 없음")
+    treble, bass = detect_staves(real)
+    assert treble[1] < bass[0]
+    assert bass[1] - bass[0] >= 20

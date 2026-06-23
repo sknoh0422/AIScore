@@ -71,3 +71,56 @@ def crop_system(
     y0 = max(0, y_start - padding)
     y1 = min(img.height, y_end + padding)
     return img.crop((0, y0, img.width, y1))
+
+
+def detect_staves(
+    img_path: Path,
+    padding: int = 15,
+    density_ratio: float = 0.08,
+) -> tuple[tuple[int, int], tuple[int, int]]:
+    """시스템 크롭에서 treble·bass 두 스태프 bbox를 반환.
+
+    이미지를 상·하 절반으로 나눠 각 절반에서 밀집 구간을 탐지한다.
+    treble은 항상 상단, bass는 항상 하단에 있다는 SATB 레이아웃 가정.
+
+    Args:
+        img_path: 시스템 크롭 PNG 경로.
+        padding: 탐지된 밀집 구간에 추가할 상하 여백(px).
+        density_ratio: 절반 내 최대 밀도 대비 밀집 판정 비율.
+
+    Returns:
+        (treble_bbox, bass_bbox) — 각각 (y_start, y_end). treble[1] < bass[0] 보장.
+    """
+    img = np.array(Image.open(img_path).convert("L"))
+    h, w = img.shape
+
+    dark = (img < 200).astype(np.float32)
+    row_density = dark.sum(axis=1)
+
+    # 10px 이동 평균: 보표 5선 스팬(~30px)보다 짧아 개별 선 봉우리 보존
+    kernel = np.ones(10) / 10
+    smoothed = np.convolve(row_density, kernel, mode="same")
+
+    def _region_in_half(section: np.ndarray, offset: int) -> tuple[int, int]:
+        """절반 구간에서 밀집 구간의 (y_start, y_end) 반환 (image 좌표)."""
+        peak = section.max()
+        if peak < 1.0:
+            return offset, offset + len(section)
+        threshold = peak * density_ratio
+        dense_rows = np.where(section >= threshold)[0]
+        return int(offset + dense_rows[0]), int(offset + dense_rows[-1])
+
+    mid = h // 2
+    tr_raw = _region_in_half(smoothed[:mid], 0)
+    bs_raw = _region_in_half(smoothed[mid:], mid)
+
+    treble = (max(0, tr_raw[0] - padding), min(h, tr_raw[1] + padding))
+    bass   = (max(0, bs_raw[0] - padding), min(h, bs_raw[1] + padding))
+
+    # treble[1] < bass[0] 엄격 보장
+    if treble[1] >= bass[0]:
+        split = (tr_raw[1] + bs_raw[0]) // 2
+        treble = (treble[0], split)
+        bass   = (split + 1, bass[1])
+
+    return treble, bass
