@@ -78,7 +78,7 @@ class NoteVocab:
             # pitch
             p = n["pitch"]
             if p not in self._tok2idx:
-                log.warning("미등록 pitch 무시: %s", p)
+                log.debug("미등록 pitch 무시: %s", p)
                 continue
             indices.append(self._tok2idx[p])
             # duration (nearest)
@@ -245,7 +245,16 @@ def train(epochs: int = EPOCHS) -> None:
     MODELS_DIR.mkdir(parents=True, exist_ok=True)
     best_val_loss = float("inf")
 
+    n_train = len(train_ds)
+    n_val   = len(val_ds)
+    print(f"[학습 시작] 디바이스={device}  train={n_train}  val={n_val}  epochs={epochs}", flush=True)
+    print("-" * 60, flush=True)
+
+    import time
+    t_start = time.time()
+
     for epoch in range(1, epochs + 1):
+        t_epoch = time.time()
         model.train()
         train_loss = 0.0
         for batch in train_loader:
@@ -289,8 +298,8 @@ def train(epochs: int = EPOCHS) -> None:
 
         avg_train = train_loss / len(train_loader)
         avg_val   = val_loss   / len(val_loader)
-        log.info("Epoch %d/%d | train=%.4f val=%.4f", epoch, epochs, avg_train, avg_val)
-        scheduler.step(avg_val)
+        elapsed   = time.time() - t_epoch
+        saved_mark = ""
 
         if avg_val < best_val_loss:
             best_val_loss = avg_val
@@ -302,8 +311,21 @@ def train(epochs: int = EPOCHS) -> None:
                 "val_loss": avg_val,
             }
             torch.save(ckpt, MODELS_DIR / "omr_crnn_best.pt")
-            log.info("체크포인트 저장 (val=%.4f)", avg_val)
+            saved_mark = "  ★ 저장"
 
+        print(
+            f"Epoch {epoch:>3}/{epochs}"
+            f"  train={avg_train:.4f}"
+            f"  val={avg_val:.4f}"
+            f"  {elapsed:.0f}s{saved_mark}",
+            flush=True,
+        )
+        log.info("Epoch %d/%d | train=%.4f val=%.4f", epoch, epochs, avg_train, avg_val)
+        scheduler.step(avg_val)
+
+    total_min = (time.time() - t_start) / 60
+    print("-" * 60, flush=True)
+    print(f"[학습 완료]  best_val_loss={best_val_loss:.4f}  총 소요={total_min:.1f}분", flush=True)
     log.info("학습 완료. 최종 val_loss=%.4f", best_val_loss)
 
 
