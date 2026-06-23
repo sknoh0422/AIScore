@@ -5,6 +5,31 @@ backend/data/
 # 빌드된 외부 엔진(대용량, 비커밋) — Audiveris 등
 /vendor/
 
+# score_images 이미지 파일 (대용량, 비커밋)
+score_images/*.jpg
+score_images/*.JPG
+score_images/*.jpeg
+score_images/*.JPEG
+score_images/*.png
+score_images/*.PNG
+score_images/**/*.jpg
+score_images/**/*.JPG
+score_images/**/*.jpeg
+score_images/**/*.JPEG
+score_images/**/*.png
+score_images/**/*.PNG
+score_images/**/*.nwc
+score_images/**/*.NWC
+score_images/**/*.nwz
+score_images/**/*.NWZ
+score_images/**/*.xml
+score_images/**/*.XML
+score_images/**/*.err
+
+# 학습 데이터 / 모델 (대용량, 비커밋)
+training/data/
+training/models/
+
 # 모델 가중치 / 대용량 오디오
 *.wav
 *.ckpt
