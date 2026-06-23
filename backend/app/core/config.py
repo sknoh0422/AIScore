@@ -35,6 +35,11 @@ def omr_model_path() -> Path | None:
     default = _REPO / "models" / "omr" / "best.pt"
     return default if default.exists() else None
 
+def dl_omr_model_path() -> Path | None:
+    """DL-OMR CRNN 모델 경로. 환경변수 미설정 시 training/models/omr_crnn_best.pt 반환."""
+    p = Path(os.getenv("DL_OMR_MODEL_PATH", str(_REPO / "training" / "models" / "omr_crnn_best.pt")))
+    return p if p.exists() else None
+
 def paddleocr_lang() -> str:
     """PaddleOCR 언어 설정. 기본값 'korean'."""
     return os.environ.get("AISCORE_PADDLEOCR_LANG", "korean")
