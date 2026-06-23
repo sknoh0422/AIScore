@@ -1,9 +1,9 @@
 # AIScore 로드맵 / 진행 상태
 
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
-> 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](specs/2026-06-16-aiscore-design.md).
+> 규약은 [CLAUDE.md](../CLAUDE.md), 설계 원칙은 [Why 문서](specs/design-why.md), 소스 구조·흐름은 [How 문서](specs/aiscore-system-design.md).
 
-**최종 갱신:** 2026-06-22 (6차)
+**최종 갱신:** 2026-06-23 (8차)
 
 ---
 
@@ -16,14 +16,14 @@
 ---
 
 ## ✅ 완료
-- **프로젝트 설계 확정** — [설계 문서](specs/2026-06-16-aiscore-design.md) (헥사고날, 1/2단계 로드맵, 트랙B)
+- **프로젝트 설계 확정** — (헥사고날, 1/2단계 로드맵, 트랙B)
 - **CLAUDE.md** — 이중 오케스트레이션·레이어·라우팅·병렬화·절대규칙 20
 - **스캐폴딩** — backend/frontend/training 구조, 동결된 `backend/app/domain/ports.py`
 - **1단계 파이프라인 (image→OMR→SATB→모음"우"→믹싱)** — main 통합 완료, 단위 테스트 16 passed
-  - 계획: [1단계 계획](plans/2026-06-16-stage1-vowel-choir.md)
+  - 계획: (1단계 계획 — 완료)
   - 구현: OMR(oemer)·파싱(music21)·SVS(VowelSynth)·믹싱 어댑터 + 오케스트레이터(4성부 병렬) + FastAPI 잡 API
 - **Audiveris OMR 스테이지 (image→Audiveris→N성부)** — main 통합 완료, 단위 24 passed + E2E(315.JPG→choir.wav 18s) 검증
-  - 계획: [Audiveris 계획](plans/2026-06-17-audiveris-omr.md)
+  - 계획: (Audiveris 계획 — 완료)
   - 구현: 전처리(업스케일) + `audiveris_adapter`(JDK25 배치) + `part×voice` 무손실 파서 + 존재 성부만 합성 + 업로드 검증. 실제 SATB는 트레블/베이스 2성부 가이드(완전 4성부는 교정 영역).
 - **품질 개선 5종** — 33 passed, main 통합 완료 (`716cad9`)
   - ParseError 추가 + 파서 0-파트 방어 / 업로드 OOM 방어(`read(_MAX_BYTES+1)`) / 믹서 스테레오→모노 변환+samplerate 수정 / Store 격리(root 파라미터+reset, conftest autouse) / test_ports.py 포트 계약 테스트 5종 / pyproject.toml integration 마크 기본 제외
@@ -32,36 +32,42 @@
   - 백엔드 추가: CORS, score_path 추적, `/audio` · `/score` FileResponse 엔드포인트
   - 실행: `uvicorn app.main:app --reload` (포트 8000) + `npm run dev` (포트 3000)
 - **Score Understanding Pipeline (DL-OMR 5모듈)** — main 머지 완료 (`e50e493`, 2026-06-22), 88 passed
-  - 계획: [파이프라인 계획](plans/2026-06-19-score-understanding-pipeline.md)
-  - 설계: [파이프라인 설계](specs/2026-06-19-score-understanding-pipeline-design.md)
+  - 계획·설계: (완료, 파일 통폐합됨)
   - 구현: 전처리 → 레이아웃 분석 → YOLOv8 OMR 엔진 → 메타 추출 → 가사 OCR(PaddleOCR) → MusicXML 조립 → `ScoreUnderstandingAdapter(OmrPort)`
   - 현재 상태: YOLOv8 모델 미학습(더미 패스스루). 다음 단계 = 모델 학습(Plan 1B)
 - **MD 파일 체계 재구성** — `docs/superpowers/` 제거, `docs/plans/` · `docs/specs/` · `raw/project_start.md` 정착
+- **Plan 1B — OMR 모델 학습 파이프라인 구축** — `feat/plan-1b-omr-training` 브랜치, main 머지 대기 중 (2026-06-23)
+  - 계획서: [`docs/plans/2026-06-23-plan-1b-omr-training.md`](plans/2026-06-23-plan-1b-omr-training.md)
+  - `training/scripts/data_prep.py` — XML→JSON 라벨 630쌍 추출, train480/val60/test60 분할
+  - `training/scripts/baseline_eval.py` — Audiveris 기준선 평가 (≈65%, 자체 학습 정당화)
+  - `training/scripts/train_omr.py` — CRNN(ResNet18+BiLSTM+CTC), vocab 119토큰, T=128, MPS 지원
+  - `training/notebooks/01_data_prep.ipynb`, `02_train_omr.ipynb` — 실험 래퍼
+  - `backend/app/stages/omr/dl_omr_adapter.py` — `DlOmrAdapter(OmrPort)` 구현
+  - `backend/app/core/config.py` — `dl_omr_model_path()` 추가
+  - E2E 확인: `hymn001_Normal.png` → 추론 → MusicXML 2389 bytes 생성
+  - **현재 상태:** 2 epoch 스모크 학습 완료(val_loss 6.59→6.12). **30 epoch 전체 학습 미완료** → 정확도 미검증
 
 ## ⏳ 대기 / 검증 필요
 - **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 소프라노 검출 34/52음(65%), 4개 마디 전체 누락. 300 DPI 스캔본으로 재검증 필요.
+- **Plan 1B 브랜치 머지** — `feat/plan-1b-omr-training` → main 머지 승인 대기
 
 ## 📋 예정 (우선순위순)
 
-### 🔴 최우선: Plan 1B — YOLOv8 모델 학습
+### 🔴 최우선: Plan 1B 후속 — CRNN 전체 학습 + 정확도 달성
 
-> **현재 상태:** Score Understanding Pipeline 파이프라인 코드 완성. YOLOv8 모델 미학습 상태(더미 패스스루). 모델 학습이 완료되어야 실제 OMR 정확도가 나온다.
+> **현재 상태:** 파이프라인 구축 완료, 2 epoch 스모크 학습만 진행됨. 30 epoch 전체 학습 필요.
 
-**목표 정확도:** 소프라노 검출률 ≥ 90%, 피치 정확도 ≥ 95%, 마디 전체 누락 0
-
-**Plan 1B 태스크 (브레인스토밍 → 설계 → 계획 필요):**
-1. Lilypond 렌더링 스크립트 — `training/scripts/render_scores.py` (MusicXML → 악보 이미지 + 레이블 자동 생성)
-2. YOLO 포맷 레이블 생성 — `training/scripts/generate_labels.py`
-3. YOLOv8 파인튜닝 — DeepScores V2 사전학습 → 찬송가 데이터 파인튜닝
-4. PaddleOCR 한국어 파인튜닝 — 찬송가 가사 GT 데이터
-5. 평가 스크립트 — Audiveris 65% 기준선 대비 측정
-
-**설계 문서:** [DL-OMR 설계](specs/2026-06-19-dl-omr-design.md)
+**다음 작업:**
+1. `feat/plan-1b-omr-training` → `main` 머지
+2. `PYTORCH_ENABLE_MPS_FALLBACK=1 /opt/miniconda3/envs/aiscore/bin/python training/scripts/train_omr.py` — 30 epoch 전체 학습 실행 (수 시간 소요)
+3. val set 음표 정확도 측정 — 95% 미달 시 데이터 증강(회전·밝기·노이즈) 추가 후 재학습
+4. 다페이지 이미지(2400px+, 16개) 처리 개선 — 현재 Resize 압축 → 페이지 분할 전처리 고려
+5. `DlOmrAdapter`를 오케스트레이터에 기본 어댑터로 연결
 
 ---
 
 - **L4 교정 로깅** — 교정 결과를 (이미지영역, 오답, 정답) 라벨로 누적(DL 학습 데이터 플라이휠).
-- **모바일 앱 (React Native + Expo)** — 계획서 완료. [계획서](plans/2026-06-18-mobile-app.md)
+- **모바일 앱 (React Native + Expo)** — 계획서 완료. [계획서](plans/plan-mobile-app.md)
 - **2단계 가사** — 텍스트 입력/OCR + 음절↔음표 정렬 + 가사 가창 SVS.
 
 ---
@@ -127,6 +133,32 @@
 - **모바일 앱 설계 확정** — React Native+Expo. 계획서 `2026-06-18-mobile-app.md` 완료.
 - `feat/vocal-quality` → main squash 머지 완료.
 
+### 2026-06-23 (Plan 1B — OMR 학습 파이프라인 구축)
+- **Plan 1B 6태스크 완료** — `feat/plan-1b-omr-training` 브랜치, 서브에이전트 주도 TDD
+  - **데이터 준비**: `data_prep.py` — XML 630쌍 JSON 라벨 변환(Chord 처리 포함), train/val/test 분할
+  - **기준선 평가**: `baseline_eval.py` — Audiveris ≈65% 확인(자체 학습 정당화)
+  - **CRNN 모델**: `train_omr.py` — ResNet18(`maxpool=Identity`, stride 16) + BiLSTM + 4성부 CTC, vocab 119토큰, `IMG_W=2048,IMG_H=128`(T=128)
+  - **노트북**: `01_data_prep.ipynb`, `02_train_omr.ipynb`
+  - **백엔드 어댑터**: `dl_omr_adapter.py` — `DlOmrAdapter(OmrPort)`, `torch.load weights_only=False` (vocab dict 포함)
+  - **config**: `dl_omr_model_path()` — `DL_OMR_MODEL_PATH` 환경변수 지원
+  - E2E 스모크: `hymn001_Normal.png` → MusicXML 2389 bytes 생성 확인
+  - 2 epoch 학습: val_loss 6.59→6.12. 30 epoch 전체 학습은 별도 실행 필요
+- **브랜치**: `feat/plan-1b-omr-training` — main 머지 승인 대기
+
+### 2026-06-23 (NWC 전곡 확보 + OMR 학습 방향 확정)
+- **NWC 전곡 확보** — risen.runean.com(CDN) + Daum 카페 백업 소스로 003~009·490 분리악보 보완
+  - 분리악보: 645개 (100% 확보), 합부악보: 553개 (490 합부 CDN 404 → 스킵)
+  - MusicXML 변환 완료: 644개. 실패 3개(133·315·?) — music21 미지원 오브젝트
+  - 출처 기록: `score_images/SOURCES.md`
+- **OMR 학습 전략 확정** (토론 기반)
+  - Ground truth: 분리악보 XML 644개 (NWC→music21→MusicXML 변환본)
+  - 모델 입력: 악보 이미지 (800×1248, 10~15마디/페이지)
+  - 모델 출력: **구조화 JSON** (마디별 음표 이벤트 — pitch/duration/voice/accidental/tie)
+  - 서버 후처리: JSON → MusicXML (결정론적 규칙)
+  - 프론트엔드: MusicXML → OSMD (악보 표시·cursor sync) + SVS/MIDI (성부 재생)
+  - 개발 흐름: `training/notebooks/` → `training/scripts/` → `backend/stages/omr/` (추론만)
+- **설계 문서 신규 작성** — [OMR 학습 파이프라인 설계](specs/aiscore-system-design.md)
+
 ### 2026-06-22 (Score Understanding Pipeline 머지 + MD 체계 정리)
 - **Score Understanding Pipeline** (`feat/score-understanding-pipeline`) → main 머지 완료.
   - 12커밋, 25파일, 1299줄 추가. 88 tests passed.
@@ -143,7 +175,7 @@
   - m2=D5(정답 A), m3=G5(정답 Bb) 등 피치 오인식도 다수.
   - 결론: **Audiveris 튜닝으로는 근본 해결 불가**. 재설계 필요.
 - **DL-OMR 재설계 방향 확정** — 딥러닝 기반 OMR을 처음부터 개발. 찬송가·악보 앱 데이터로 지도학습. 헥사고날 아키텍처의 `OmrPort` 어댑터 교체점 활용.
-- 설계 문서: [`docs/superpowers/specs/2026-06-19-dl-omr-design.md`](superpowers/specs/2026-06-19-dl-omr-design.md) 작성.
+- 설계 문서: [`docs/specs/design-why.md`](specs/design-why.md) 작성.
 
 > 이력 갱신 규칙: 의미 있는 단계 완료/결정마다 위에 날짜 항목을 추가하고, 상단 **최종 갱신** 날짜를 바꾼다.
 

@@ -1,0 +1,977 @@
+<title>AIScore 시스템 설계 — How 문서</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface2: #22263a;
+    --border: #2e3350;
+    --accent: #5b8dee;
+    --accent2: #a78bfa;
+    --green: #34d399;
+    --yellow: #fbbf24;
+    --red: #f87171;
+    --text: #e2e8f0;
+    --text-muted: #8892aa;
+    --code-bg: #141720;
+    --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── 레이아웃 ── */
+  .layout { display: flex; min-height: 100vh; }
+
+  nav {
+    width: 240px;
+    min-width: 240px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 24px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+
+  nav .logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 16px;
+  }
+  nav .logo .title { font-size: 13px; font-weight: 700; color: var(--accent); letter-spacing: .05em; }
+  nav .logo .sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  nav a {
+    display: block;
+    padding: 6px 20px;
+    font-size: 12.5px;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav a:hover { color: var(--text); background: var(--surface2); }
+  nav a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(91,141,238,.07); }
+  nav .nav-section { font-size: 10px; font-weight: 700; color: var(--text-muted); letter-spacing: .1em; text-transform: uppercase; padding: 12px 20px 4px; }
+  nav .nav-sub { padding-left: 32px; font-size: 12px; }
+
+  main {
+    flex: 1;
+    max-width: 900px;
+    padding: 48px 48px 80px;
+    overflow-x: hidden;
+  }
+
+  /* ── 타이포 ── */
+  h1 { font-size: 28px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 700; color: var(--text); margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+  h3 { font-size: 16px; font-weight: 600; color: var(--accent2); margin: 32px 0 12px; }
+  h4 { font-size: 14px; font-weight: 600; color: var(--text-muted); margin: 20px 0 8px; letter-spacing: .03em; }
+  p { margin-bottom: 12px; color: var(--text); }
+
+  .meta {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 13px;
+    color: var(--text-muted);
+    margin-bottom: 32px;
+  }
+  .meta strong { color: var(--text); }
+
+  /* ── 뱃지 ── */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+  .badge-green { background: rgba(52,211,153,.15); color: var(--green); }
+  .badge-yellow { background: rgba(251,191,36,.15); color: var(--yellow); }
+  .badge-blue { background: rgba(91,141,238,.15); color: var(--accent); }
+  .badge-purple { background: rgba(167,139,250,.15); color: var(--accent2); }
+
+  /* ── 코드 ── */
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.6;
+    color: #c9d1d9;
+    margin: 12px 0 20px;
+  }
+  code {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    color: #e2b67e;
+  }
+  pre code { background: none; border: none; padding: 0; color: inherit; }
+
+  /* ── 테이블 ── */
+  .table-wrap { overflow-x: auto; margin: 12px 0 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+  th {
+    background: var(--surface2);
+    color: var(--text-muted);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  td { padding: 9px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: rgba(255,255,255,.02); }
+
+  /* ── 카드 ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--accent); margin-bottom: 12px; }
+
+  /* ── 흐름도 ── */
+  .flow {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin: 12px 0 20px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.8;
+    color: #c9d1d9;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .flow .comment { color: var(--text-muted); }
+  .flow .node { color: var(--accent); }
+  .flow .arrow { color: #64748b; }
+  .flow .label { color: var(--green); }
+  .flow .warn { color: var(--yellow); }
+
+  /* ── 섹션 헤더 ── */
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 48px 0 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .section-num {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; color: #fff;
+    flex-shrink: 0;
+  }
+  .section-header h2 { border: none; margin: 0; padding: 0; font-size: 20px; }
+
+  .subsection-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 36px 0 14px;
+  }
+  .subsection-icon {
+    width: 6px; height: 6px;
+    background: var(--accent2);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .subsection-header h3 { margin: 0; }
+
+  /* ── 목표 카드 그리드 ── */
+  .goal-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin: 16px 0; }
+  .goal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .goal-card .label { font-size: 11px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; }
+  .goal-card .value { font-size: 13px; color: var(--text); font-weight: 500; }
+
+  /* ── 사용자 흐름 스텝 ── */
+  .user-flow { display: flex; flex-direction: column; gap: 0; margin: 16px 0; }
+  .flow-step {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 12px 0;
+    position: relative;
+  }
+  .flow-step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 15px;
+    top: 40px;
+    bottom: -10px;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 30px; height: 30px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: var(--accent);
+    flex-shrink: 0; z-index: 1;
+  }
+  .step-content .step-title { font-size: 13.5px; font-weight: 600; color: var(--text); }
+  .step-content .step-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ── 레이어 다이어그램 ── */
+  .layer-stack { display: flex; flex-direction: column; gap: 2px; margin: 16px 0; }
+  .layer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .layer-label { font-size: 11px; font-weight: 700; color: var(--accent); min-width: 30px; }
+  .layer-name { font-size: 13px; font-weight: 600; color: var(--text); min-width: 130px; }
+  .layer-path { font-family: var(--font-mono); font-size: 11.5px; color: var(--text-muted); flex: 1; }
+  .layer-desc { font-size: 12px; color: var(--text-muted); }
+  .layer-arrow {
+    text-align: center;
+    font-size: 11px;
+    color: var(--text-muted);
+    padding: 0 16px;
+    margin: -2px 0;
+  }
+
+  /* ── 로드맵 타임라인 ── */
+  .roadmap { display: flex; flex-direction: column; gap: 10px; margin: 16px 0; }
+  .rm-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 16px;
+  }
+  .rm-item .badge { flex-shrink: 0; min-width: 60px; text-align: center; }
+  .rm-item .rm-text { font-size: 13px; color: var(--text); }
+
+  /* ── 어댑터 테이블 강조 ── */
+  td.current { color: var(--yellow); }
+  td.target { color: var(--green); }
+
+  /* ── 구분선 ── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+
+  /* ── 반응형 ── */
+  @media (max-width: 768px) {
+    nav { display: none; }
+    main { padding: 24px 20px 60px; }
+  }
+</style>
+
+<div class="layout">
+
+<!-- ── 사이드 네비게이션 ── -->
+<nav>
+  <div class="logo">
+    <div class="title">AIScore</div>
+    <div class="sub">시스템 설계 — How 문서</div>
+  </div>
+
+  <div class="nav-section">개요</div>
+  <a href="#s1">1. 개요</a>
+  <a href="#s1-1" class="nav-sub">1.1 목적</a>
+  <a href="#s1-2" class="nav-sub">1.2 핵심 목표</a>
+  <a href="#s1-3" class="nav-sub">1.3 사용자 흐름</a>
+  <a href="#s1-4" class="nav-sub">1.4 단계별 로드맵</a>
+
+  <div class="nav-section">구조</div>
+  <a href="#s2">2. 프로젝트 구조</a>
+  <a href="#s2-1" class="nav-sub">2.1 전체 디렉토리</a>
+  <a href="#s2-2" class="nav-sub">2.2 헥사고날 레이어</a>
+  <a href="#s2-3" class="nav-sub">2.3 전체 데이터 흐름</a>
+
+  <div class="nav-section">세부 기능</div>
+  <a href="#s3">3. 세부 기능</a>
+  <a href="#s3-1" class="nav-sub">3.1 Training</a>
+  <a href="#s3-2" class="nav-sub">3.2 Backend</a>
+  <a href="#s3-3" class="nav-sub">3.3 Frontend</a>
+  <a href="#s3-4" class="nav-sub">3.4 데이터 자산</a>
+
+  <div class="nav-section">절차</div>
+  <a href="#s4">4. 개발 절차</a>
+
+  <div class="nav-section">학습 모델</div>
+  <a href="#s5">5. 학습 모델</a>
+  <a href="#s5-1" class="nav-sub">5.1 아키텍처</a>
+  <a href="#s5-2" class="nav-sub">5.2 백본: ResNet18</a>
+  <a href="#s5-3" class="nav-sub">5.3 수정 사항</a>
+  <a href="#s5-4" class="nav-sub">5.4 Vocabulary</a>
+  <a href="#s5-5" class="nav-sub">5.5 학습 설정</a>
+  <a href="#s5-6" class="nav-sub">5.6 파일 위치</a>
+</nav>
+
+<!-- ── 본문 ── -->
+<main>
+
+  <h1>AIScore 시스템 설계</h1>
+  <div class="meta">
+    <strong>작성일:</strong> 2026-06-23 &nbsp;·&nbsp;
+    <strong>역할:</strong> 전체 시스템의 소스 구조·데이터 흐름·기능 구성 상세 (How) &nbsp;·&nbsp;
+    <strong>연계:</strong> ROADMAP.md · DL-OMR 설계 원칙 · CLAUDE.md
+  </div>
+
+  <!-- ══ 1. 개요 ══ -->
+  <div id="s1" class="section-header">
+    <div class="section-num">1</div>
+    <h2>개요</h2>
+  </div>
+
+  <h3 id="s1-1">1.1 목적</h3>
+  <p>찬송가 악보 이미지를 입력받아 4성부(SATB) 악보를 앱/웹 화면에 표시하고, 성부별 또는 전체 음성(SVS·MIDI)을 재생하는 서비스를 구현한다. 악보 인식(OMR) 모델은 보유한 645쌍의 이미지-MusicXML 데이터를 ground truth로 삼아 지도학습한다.</p>
+
+  <h3 id="s1-2">1.2 핵심 목표</h3>
+  <div class="goal-grid">
+    <div class="goal-card">
+      <div class="label">OMR 정확도</div>
+      <div class="value">음표 인식률 ≥ <strong style="color:var(--green)">95%</strong></div>
+    </div>
+    <div class="goal-card">
+      <div class="label">악보 표시</div>
+      <div class="value">SATB 4성부 렌더링 (OSMD)</div>
+    </div>
+    <div class="goal-card">
+      <div class="label">성부 재생</div>
+      <div class="value">성부 선택 → SVS / MIDI</div>
+    </div>
+    <div class="goal-card">
+      <div class="label">위치 동기화</div>
+      <div class="value">재생 중 cursor 표시</div>
+    </div>
+    <div class="goal-card">
+      <div class="label">가사 (2단계)</div>
+      <div class="value">OCR + 음절↔음표 정렬</div>
+    </div>
+  </div>
+
+  <h3 id="s1-3">1.3 최종 사용자 흐름</h3>
+  <div class="user-flow">
+    <div class="flow-step">
+      <div class="step-num">1</div>
+      <div class="step-content">
+        <div class="step-title">악보 이미지 업로드</div>
+        <div class="step-desc">JPG / PNG 파일 드래그&드롭 또는 선택</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">2</div>
+      <div class="step-content">
+        <div class="step-title">서버 처리 (자동)</div>
+        <div class="step-desc">OMR → 음표 추출 → MusicXML · WAV 생성</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">3</div>
+      <div class="step-content">
+        <div class="step-title">악보 화면 표시</div>
+        <div class="step-desc">SATB 4성부 악보 렌더링 (OSMD)</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">4</div>
+      <div class="step-content">
+        <div class="step-title">성부 선택</div>
+        <div class="step-desc">전체 합창 / S / A / T / B 클릭</div>
+      </div>
+    </div>
+    <div class="flow-step">
+      <div class="step-num">5</div>
+      <div class="step-content">
+        <div class="step-title">재생 + 동기화</div>
+        <div class="step-desc">음성 출력 + 악보 위치 cursor 이동</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 id="s1-4">1.4 단계별 로드맵</h3>
+  <div class="roadmap">
+    <div class="rm-item">
+      <span class="badge badge-green">완료</span>
+      <div class="rm-text"><strong>1단계</strong> — 이미지 → OMR → 음표 → 모음 "우" 합창 WAV</div>
+    </div>
+    <div class="rm-item">
+      <span class="badge badge-blue">진행</span>
+      <div class="rm-text"><strong>Plan 1B</strong> — OMR 모델 학습 (Ground Truth 644쌍 확보 완료)</div>
+    </div>
+    <div class="rm-item">
+      <span class="badge badge-yellow">예정</span>
+      <div class="rm-text"><strong>2단계</strong> — + 가사(OCR) + 음절 정렬 + 가사 가창 SVS</div>
+    </div>
+    <div class="rm-item">
+      <span class="badge badge-yellow">예정</span>
+      <div class="rm-text"><strong>트랙B</strong> — 교정 데이터 → OMR 모델 재학습 플라이휠</div>
+    </div>
+  </div>
+
+  <!-- ══ 2. 프로젝트 구조 ══ -->
+  <div id="s2" class="section-header">
+    <div class="section-num">2</div>
+    <h2>프로젝트 구조</h2>
+  </div>
+
+  <h3 id="s2-1">2.1 전체 디렉토리</h3>
+  <pre>aiscore/
+│
+├── backend/                    ← FastAPI 서버 (추론·서빙)
+│   └── app/
+│       ├── api/                ← HTTP 엔드포인트, 스키마
+│       ├── orchestration/      ← 파이프라인 조율, 잡 상태
+│       ├── stages/             ← OMR·파싱·SVS·믹싱 어댑터
+│       │   ├── omr/
+│       │   ├── parsing/
+│       │   ├── svs/
+│       │   └── mixing/
+│       ├── domain/             ← 순수 Python 도메인 모델 + ports.py
+│       ├── storage/            ← 파일·잡 메타 저장
+│       └── core/               ← config·device·errors (횡단)
+│
+├── frontend/                   ← Next.js 웹 (악보 표시·재생)
+│   └── src/
+│       ├── app/                ← 페이지 라우팅
+│       ├── components/         ← OSMD 래퍼, 오디오 플레이어
+│       └── lib/                ← API 클라이언트
+│
+├── training/                   ← 모델 학습 (서빙 경로 밖)
+│   ├── notebooks/              ← 탐색·실험용 Jupyter
+│   ├── scripts/                ← 노트북 → 정리본 Python
+│   ├── models/                 ← 학습 가중치 (커밋 제외)
+│   └── data/                   ← 중간 산출물 (커밋 제외)
+│
+├── score_images/               ← 데이터 자산 (커밋 제외)
+│   ├── png/                    ← 악보 이미지 645개 (800×1248px)
+│   ├── xml/분리/               ← MusicXML ground truth 644개
+│   ├── nwc/분리·합부/          ← NWC 원본
+│   └── SOURCES.md              ← 파일 출처 기록
+│
+└── docs/
+    ├── ROADMAP.md              ← 진행 상태 (세션 진입점)
+    ├── plans/                  ← 단계별 구현 계획
+    └── specs/                  ← 설계 문서</pre>
+
+  <h3 id="s2-2">2.2 아키텍처 레이어 (헥사고날)</h3>
+  <div class="layer-stack">
+    <div class="layer">
+      <div class="layer-label">L1</div>
+      <div class="layer-name">API / Gateway</div>
+      <div class="layer-path">backend/app/api/</div>
+      <div class="layer-desc">엔드포인트, Pydantic 스키마</div>
+    </div>
+    <div class="layer-arrow">↓ 의존성 단방향</div>
+    <div class="layer">
+      <div class="layer-label">L2</div>
+      <div class="layer-name">Orchestration</div>
+      <div class="layer-path">backend/app/orchestration/</div>
+      <div class="layer-desc">파이프라인 조율, 잡 상태, SVS 병렬</div>
+    </div>
+    <div class="layer-arrow">↓</div>
+    <div class="layer">
+      <div class="layer-label">L3</div>
+      <div class="layer-name">Stages (어댑터)</div>
+      <div class="layer-path">backend/app/stages/</div>
+      <div class="layer-desc">OMR · 파싱 · SVS · 믹싱 — 교체점</div>
+    </div>
+    <div class="layer-arrow">↓</div>
+    <div class="layer">
+      <div class="layer-label">—</div>
+      <div class="layer-name">Domain</div>
+      <div class="layer-path">backend/app/domain/</div>
+      <div class="layer-desc">순수 Score 모델 + ports.py (Protocol)</div>
+    </div>
+  </div>
+
+  <h4>어댑터 교체점</h4>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>포트</th><th>현재 어댑터</th><th>목표 어댑터</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>OmrPort</code></td>
+          <td class="current">ScoreUnderstandingAdapter (YOLOv8 미학습)</td>
+          <td class="target">DlOmrAdapter (학습 완료, 95%)</td>
+        </tr>
+        <tr>
+          <td><code>SvsPort</code></td>
+          <td class="current">VowelSynthAdapter (모음 "우")</td>
+          <td class="target">LyricSingingAdapter (2단계)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="s2-3">2.3 전체 데이터 흐름</h3>
+  <div class="flow">
+<span class="node">[입력]</span>  악보 이미지 (JPG/PNG, 800×1248px)
+    │
+    ▼  <span class="comment">backend/stages/omr/</span>
+<span class="node">[OMR]</span>  이미지 → 구조화 JSON  <span class="comment">(pitch · duration · voice per 마디)</span>
+    │
+    ▼  <span class="comment">backend/stages/omr/ 후처리</span>
+<span class="node">[XML]</span>  JSON → MusicXML  <span class="comment">(결정론적 규칙 변환)</span>
+    │
+    ├──▶  <span class="label">frontend/</span>  →  OSMD 악보 렌더링 + cursor sync
+    │
+    ▼  <span class="comment">backend/stages/svs/ + mixing/</span>
+<span class="node">[음성]</span> MusicXML → SVS 합성 → WAV 믹싱
+    │
+    └──▶  <span class="label">frontend/</span>  →  오디오 재생</div>
+
+  <!-- ══ 3. 세부 기능 ══ -->
+  <div id="s3" class="section-header">
+    <div class="section-num">3</div>
+    <h2>세부 기능</h2>
+  </div>
+
+  <!-- 3.1 Training -->
+  <div id="s3-1" class="card">
+    <div class="card-title">3.1 Training — OMR 모델 학습</div>
+
+    <h4>개요</h4>
+    <p>보유한 645쌍(이미지 800×1248px + MusicXML 644개)을 ground truth로 삼아 악보 이미지 → 구조화 JSON 변환 모델을 지도학습한다. 노트북에서 탐색·실험하고, 완성된 코드를 스크립트로 정리한 후, 학습 가중치만 백엔드에 전달한다.</p>
+
+    <h4>흐름도</h4>
+    <div class="flow">score_images/png/                score_images/xml/분리/
+hymn{NNN}_Normal.png       +    새찬송가_{NNN}*.xml
+        │                                │
+        │           [01_data_prep]        │
+        ├────────────────────────────────┤
+        ▼                                ▼
+마디 단위 크롭 이미지           마디별 JSON 라벨
+(training/data/crops/)         (training/data/labels/)
+        │                                │
+        └──────────────┬─────────────────┘
+                       │  [02_train_omr]
+                       ▼
+                모델 학습 루프
+          (CNN 인코더 + Transformer 디코더)
+                       │
+                       ▼
+          training/models/omr_v1.ckpt
+                       │
+                       ▼
+   backend/stages/omr/dl_omr_adapter.py
+         (가중치 로드 + 추론만)</div>
+
+    <h4>기능 구성</h4>
+
+    <p><code>training/notebooks/01_data_prep.ipynb</code></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>단계</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td>페어링 확인</td><td><code>hymn{NNN}</code> ↔ <code>새찬송가_{NNN}</code> 번호 매칭, 누락 목록</td></tr>
+          <tr><td>XML → JSON 라벨 추출</td><td>music21로 XML 파싱 → 마디별 S/A/T/B 음표 → JSON</td></tr>
+          <tr><td>마디 영역 검출</td><td>OpenCV 보표선 검출 → 마디 경계 → 이미지 크롭</td></tr>
+          <tr><td>데이터셋 분할</td><td>train 80% / val 10% / test 10% (곡 번호 기준)</td></tr>
+          <tr><td>샘플 시각화</td><td>크롭 이미지 + 라벨 오버레이 확인</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><code>training/notebooks/02_train_omr.ipynb</code></p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>단계</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td>기존 모델 검증</td><td>Audiveris · SMT++ → 95% 미달 확인</td></tr>
+          <tr><td>모델 정의</td><td>CNN 인코더(ResNet18/EfficientNet) + Transformer 디코더</td></tr>
+          <tr><td>학습 루프</td><td>Cross-entropy loss, AdamW, LR 스케줄러</td></tr>
+          <tr><td>검증</td><td>음표 정확도 (pitch + duration + voice 모두 맞아야 정답)</td></tr>
+          <tr><td>체크포인트</td><td><code>training/models/omr_v{N}.ckpt</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p><strong>JSON 라벨 포맷 (모델 출력 스펙)</strong></p>
+    <pre>{
+  "hymn": "001",
+  "measures": [
+    {
+      "number": 1,
+      "time_sig": "4/4",
+      "key_sig": 0,
+      "implicit": false,
+      "parts": {
+        "S": [
+          {
+            "pitch": "C5",
+            "duration": "quarter",
+            "dot": false,
+            "tie_start": false,
+            "tie_end": false,
+            "accidental": null,
+            "rest": false
+          }
+        ],
+        "A": [...],
+        "T": [...],
+        "B": [...]
+      }
+    }
+  ]
+}</pre>
+  </div>
+
+  <!-- 3.2 Backend -->
+  <div id="s3-2" class="card">
+    <div class="card-title">3.2 Backend — FastAPI 서버</div>
+
+    <h4>개요</h4>
+    <p>이미지 업로드 → 비동기 잡 처리 → OMR·파싱·SVS·믹싱 파이프라인 실행 → 결과(MusicXML·WAV) 서빙. 헥사고날 아키텍처로 각 단계는 어댑터 교체만으로 업그레이드 가능.</p>
+
+    <h4>흐름도</h4>
+    <div class="flow">클라이언트 (프론트엔드)
+    │  POST /jobs  <span class="comment">(이미지 업로드)</span>
+    ▼
+<span class="node">[api/]</span>  요청 검증 + 잡 ID 생성
+    │
+    ▼
+<span class="node">[orchestration/]</span>  파이프라인 조율 (비동기)
+    │
+    ├─<span class="node">[stages/omr/]</span>
+    │   이미지 → DlOmrAdapter → JSON → MusicXML
+    │
+    ├─<span class="node">[stages/parsing/]</span>
+    │   MusicXML → Music21Parser → Score 도메인 객체
+    │
+    ├─<span class="node">[stages/svs/]</span>  <span class="comment">(S/A/T/B 4성부 병렬)</span>
+    │   Score → VowelSynthAdapter → 성부별 WAV
+    │
+    └─<span class="node">[stages/mixing/]</span>
+        성부별 WAV → Mixer → 합창 WAV
+
+잡 상태: <span class="label">queued → omr → parsing → synth → mixing → done</span> / <span class="warn">failed</span>
+    │
+    ▼
+<span class="node">[storage/]</span>  MusicXML·WAV 저장, 잡 메타 관리</div>
+
+    <h4>API 엔드포인트</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>엔드포인트</th><th>메서드</th><th>설명</th></tr></thead>
+        <tbody>
+          <tr><td><code>/jobs</code></td><td>POST</td><td>이미지 업로드 → 잡 생성</td></tr>
+          <tr><td><code>/jobs/{id}/status</code></td><td>GET</td><td>잡 상태 폴링</td></tr>
+          <tr><td><code>/jobs/{id}/score</code></td><td>GET</td><td>MusicXML 파일</td></tr>
+          <tr><td><code>/jobs/{id}/audio</code></td><td>GET</td><td>전체 합창 WAV</td></tr>
+          <tr><td><code>/jobs/{id}/audio/{voice}</code></td><td>GET</td><td>성부별 WAV (S/A/T/B)</td></tr>
+          <tr><td><code>/jobs/{id}/meta</code></td><td>GET</td><td>조성·박자·음표 메타</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>OMR 어댑터 계층</h4>
+    <pre>OmrPort (ports.py)                ← 인터페이스 (동결)
+  └─ DlOmrAdapter                 ← 학습 모델 (목표, 95%)
+  └─ ScoreUnderstandingAdapter    ← YOLOv8 (현재, 미학습)
+  └─ AudiverisAdapter             ← 규칙 기반 (65%, 백업)</pre>
+
+    <h4>도메인 모델</h4>
+    <pre>Score
+  └─ Part(voice: Voice)
+       └─ Note(pitch, duration, tie, accidental, ...)
+ports.py  ← OmrPort · SvsPort · ScoreParserPort  (Protocol 정의)</pre>
+  </div>
+
+  <!-- 3.3 Frontend -->
+  <div id="s3-3" class="card">
+    <div class="card-title">3.3 Frontend — Next.js 웹</div>
+
+    <h4>개요</h4>
+    <p>악보 이미지 업로드 → 잡 상태 폴링 → OSMD로 4성부 악보 렌더링 → 성부 선택 재생 + cursor 동기화. React Native(Expo) 모바일 앱도 동일 API 사용.</p>
+
+    <h4>흐름도</h4>
+    <div class="flow">홈 페이지 <span class="comment">(/)</span>
+    │  이미지 드래그&드롭 · POST /jobs
+    ▼
+잡 페이지 <span class="comment">(/jobs/{id})</span>
+    │  GET /jobs/{id}/status  <span class="comment">(2초 폴링)</span>
+    │
+    ├─<span class="warn">[처리 중]</span>  진행 상태 바 표시
+    │             queued → omr → parsing → synth → mixing
+    │
+    └─<span class="label">[완료]</span>
+         │
+         ├─ GET /jobs/{id}/score → MusicXML
+         │       ↓
+         │   <span class="node">OSMD 렌더링</span>
+         │   ├─ SATB 4성부 악보 표시
+         │   └─ cursor 위치 동기화
+         │
+         └─ GET /jobs/{id}/audio/{voice}
+                 ↓
+             <span class="node">오디오 플레이어</span>
+             ├─ 성부 탭 (전체 / S / A / T / B)
+             └─ 재생 → OSMD cursor 이동</div>
+
+    <h4>기능 구성</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>컴포넌트</th><th>기능</th></tr></thead>
+        <tbody>
+          <tr><td><code>src/app/page.tsx</code></td><td>드래그&드롭 업로드, 파일 검증, POST /jobs → 잡 페이지 이동</td></tr>
+          <tr><td><code>src/app/jobs/[id]/page.tsx</code></td><td>2초 폴링, 진행 바, OSMD 악보, 성부 탭, 오디오 플레이어, cursor sync</td></tr>
+          <tr><td><code>src/components/ScoreViewer.tsx</code></td><td>MusicXML → OSMD 렌더링, <code>setCursorPosition(measure, beat)</code>, 성부 필터</td></tr>
+          <tr><td><code>src/components/AudioPlayer.tsx</code></td><td>성부별 오디오 URL 관리, <code>onTimeUpdate</code> → ScoreViewer cursor 연동</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 3.4 데이터 자산 -->
+  <div id="s3-4" class="card">
+    <div class="card-title">3.4 데이터 자산 관리</div>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>자산</th><th>경로</th><th>수량</th><th>비고</th></tr></thead>
+        <tbody>
+          <tr><td>악보 이미지</td><td><code>score_images/png/hymn{NNN}_Normal.png</code></td><td>645개</td><td>800×1248px</td></tr>
+          <tr><td>분리악보 XML (GT)</td><td><code>score_images/xml/분리/새찬송가_{NNN}*.xml</code></td><td>644개</td><td>NWC→music21 변환</td></tr>
+          <tr><td>분리악보 NWC</td><td><code>score_images/nwc/분리/</code></td><td>645개</td><td>원본 바이너리</td></tr>
+          <tr><td>합부악보 NWC</td><td><code>score_images/nwc/합부/</code></td><td>553개</td><td>학습 직접 사용 안 함</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>커밋 제외 항목</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>제외 대상</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td><code>score_images/**/*.png/jpg/nwc/xml</code></td><td>대용량 바이너리</td></tr>
+          <tr><td><code>training/models/*.ckpt</code></td><td>대용량 모델 가중치</td></tr>
+          <tr><td><code>training/data/</code></td><td>중간 산출물</td></tr>
+          <tr><td><code>backend/data/</code></td><td>런타임 산출물</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h4>이미지-XML 페어링</h4>
+    <pre>score_images/png/hymn001_Normal.png
+    ↕  (번호 매칭)
+score_images/xml/분리/새찬송가_001 만복의근원하나님.xml
+
+유효 쌍: 644개  (133·315번 등 3개 변환 실패 제외)</pre>
+  </div>
+
+  <!-- ══ 4. 개발 절차 ══ -->
+  <div id="s4" class="section-header">
+    <div class="section-num">4</div>
+    <h2>개발 절차 요약</h2>
+  </div>
+
+  <div class="flow">
+<span class="label">[탐색]</span>  training/notebooks/*.ipynb
+    ↓  코드 동작 확인 후
+<span class="label">[정리]</span>  training/scripts/*.py
+    ↓  가중치 산출
+<span class="label">[배포]</span>  backend/stages/omr/dl_omr_adapter.py
+    ↓  OmrPort 어댑터 교체
+<span class="label">[검증]</span>  E2E 테스트 (이미지 → OSMD 렌더링 확인)</div>
+
+  <h3>코드 경계 규칙</h3>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>위치</th><th>허용</th><th>금지</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>training/</code></td>
+          <td>학습·실험·전처리 전부</td>
+          <td style="color:var(--red)">서빙 경로 코드</td>
+        </tr>
+        <tr>
+          <td><code>backend/stages/omr/</code></td>
+          <td>모델 로드·추론·OmrPort 구현</td>
+          <td style="color:var(--red)">학습 루프·데이터 전처리</td>
+        </tr>
+        <tr>
+          <td><code>domain/</code></td>
+          <td>순수 Python</td>
+          <td style="color:var(--red)">torch·fastapi import</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+
+  <!-- ══ 5. 학습 모델 ══ -->
+  <div id="s5" class="section-header">
+    <div class="section-num">5</div>
+    <h2>학습 모델</h2>
+  </div>
+
+  <!-- 5.1 아키텍처 -->
+  <div id="s5-1" class="sub-section">
+    <h3>5.1 모델 아키텍처: OmrCRNN</h3>
+    <p>OMR 인식에는 <strong>CRNN (Convolutional Recurrent Neural Network)</strong> 구조를 채택한다. 악보 이미지를 왼쪽→오른쪽으로 슬라이딩하며 음표 시퀀스를 출력하는 구조로, OCR·악보 인식 분야에서 검증된 기준선 방법론이다.</p>
+    <div class="flow">
+입력 이미지 (B, 3, 128, 2048)
+       ↓
+<span class="label">[CNN]</span>    ResNet18 백본 (ImageNet 사전학습)
+         maxpool → Identity  (stride 32→16)
+         마지막 FC + avgpool 제거
+       ↓
+feature map  (B, 512, 8, 128)
+       ↓
+<span class="label">[Pool]</span>   AdaptiveAvgPool2d — 세로 압축 → (B, 512, 1, 128)
+       ↓
+<span class="label">[RNN]</span>    BiLSTM 2층 (hidden=256×2=512) → (B, 128, 512)
+       ↓
+<span class="label">[Head]</span>   S / A / T / B 독립 Linear 헤드
+       ↓
+<span class="label">[Loss]</span>   CTCLoss (alignment-free 시퀀스 학습)</div>
+  </div>
+
+  <!-- 5.2 백본 -->
+  <div id="s5-2" class="sub-section">
+    <h3>5.2 백본: ResNet18</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>내용</th></tr></thead>
+        <tbody>
+          <tr><td><strong>출처</strong></td><td>torchvision 공식 제공 (<code>ResNet18_Weights.DEFAULT</code>)</td></tr>
+          <tr><td><strong>원본 논문</strong></td><td>Deep Residual Learning for Image Recognition (He et al., 2015, Microsoft Research)</td></tr>
+          <tr><td><strong>사전학습 데이터</strong></td><td>ImageNet — 1,000 카테고리, 약 120만 장 자연 이미지</td></tr>
+          <tr><td><strong>파라미터 수</strong></td><td>약 11M</td></tr>
+          <tr><td><strong>역할</strong></td><td>악보 이미지의 국소 특징(선, 음표 헤드, 보표 등) 추출</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <h4 style="margin-top:1rem">선택 이유</h4>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>기준</th><th>이유</th></tr></thead>
+        <tbody>
+          <tr><td>데이터 부족</td><td>630쌍으로 처음부터 학습 불가 → ImageNet 사전학습 필수</td></tr>
+          <tr><td>Transfer Learning</td><td>자연 이미지 특징(엣지·곡선·텍스처)이 악보 인식에도 유효</td></tr>
+          <tr><td>경량</td><td>ResNet50/101 대비 파라미터 적어 소규모 데이터 과적합 위험 ↓</td></tr>
+          <tr><td>CRNN 표준</td><td>OMR·OCR 분야 검증된 CNN + BiLSTM + CTC 조합</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5.3 수정 -->
+  <div id="s5-3" class="sub-section">
+    <h3>5.3 수정 사항</h3>
+    <p>원본 ResNet18에서 두 가지를 변경했다.</p>
+    <pre><code>backbone.maxpool = nn.Identity()  # stride 32→16 으로 완화
+encoder = nn.Sequential(*list(backbone.children())[:-2])  # FC + avgpool 제거</code></pre>
+    <ul>
+      <li><strong>maxpool 제거:</strong> stride를 32→16으로 줄여 시간축(T) 프레임을 8→128로 확보. CTC는 T ≥ target_length 조건이 필요하므로 이 수정이 핵심이다.</li>
+      <li><strong>FC + avgpool 제거:</strong> 분류가 아닌 sequence-to-sequence 출력이 필요하므로 공간 feature map을 유지한다.</li>
+    </ul>
+  </div>
+
+  <!-- 5.4 Vocabulary -->
+  <div id="s5-4" class="sub-section">
+    <h3>5.4 Vocabulary (NoteVocab)</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>범주</th><th>내용</th><th>수</th></tr></thead>
+        <tbody>
+          <tr><td>특수 토큰</td><td><code>&lt;BLK&gt;</code> (CTC blank), <code>&lt;EOS&gt;</code>, <code>TIE_S</code>, <code>TIE_E</code></td><td>4</td></tr>
+          <tr><td>음정</td><td>C·D·E·F·G·A·B × 옥타브 2~6 × 제자리·♭·♯ + REST</td><td>106</td></tr>
+          <tr><td>음가</td><td>16분·8분·점8분·4분·점4분·2분·점2분·점4분·온음표 (9종)</td><td>9</td></tr>
+          <tr style="font-weight:bold"><td>합계</td><td></td><td>119</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="margin-top:.5rem">인코딩: 음표 1개 → <code>pitch 토큰</code> + <code>DUR 토큰</code> (+ 필요시 <code>TIE_S/TIE_E</code>). CTC target에 EOS 미포함(blank만 사용).</p>
+  </div>
+
+  <!-- 5.5 학습 설정 -->
+  <div id="s5-5" class="sub-section">
+    <h3>5.5 학습 설정</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>항목</th><th>값</th></tr></thead>
+        <tbody>
+          <tr><td>입력 크기</td><td>128 × 2048 (H × W), grayscale→RGB 변환</td></tr>
+          <tr><td>배치 크기</td><td>8</td></tr>
+          <tr><td>에포크</td><td>30</td></tr>
+          <tr><td>옵티마이저</td><td>Adam (lr=1e-4)</td></tr>
+          <tr><td>손실 함수</td><td>CTCLoss (blank=0, zero_infinity=True)</td></tr>
+          <tr><td>데이터 분할</td><td>학습 80 / 검증 10 / 테스트 10 % (630쌍)</td></tr>
+          <tr><td>디바이스</td><td>MPS (Apple Silicon) — CTC는 CPU fallback (<code>PYTORCH_ENABLE_MPS_FALLBACK=1</code>)</td></tr>
+          <tr><td>체크포인트</td><td><code>training/models/omr_crnn_best.pt</code> (val_loss 최소 기준)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 5.6 파일 위치 -->
+  <div id="s5-6" class="sub-section">
+    <h3>5.6 파일 위치</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>파일</th><th>역할</th></tr></thead>
+        <tbody>
+          <tr><td><code>training/scripts/train_omr.py</code></td><td>OmrCRNN 모델 정의 + 학습 루프</td></tr>
+          <tr><td><code>training/scripts/data_prep.py</code></td><td>MusicXML → JSON 라벨 추출</td></tr>
+          <tr><td><code>training/notebooks/02_train_omr.ipynb</code></td><td>학습 실행 노트북</td></tr>
+          <tr><td><code>training/models/omr_crnn_best.pt</code></td><td>최적 체크포인트 (git 미추적)</td></tr>
+          <tr><td><code>backend/app/stages/omr/dl_omr_adapter.py</code></td><td>추론 어댑터 (OmrPort 구현)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<script>
+  // 스크롤 시 활성 nav 링크 업데이트
+  const links = document.querySelectorAll('nav a[href^="#"]');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        links.forEach(l => l.classList.remove('active'));
+        const match = document.querySelector(`nav a[href="#${e.target.id}"]`);
+        if (match) match.classList.add('active');
+      }
+    });
+  }, { rootMargin: '-30% 0px -60% 0px' });
+  document.querySelectorAll('[id]').forEach(el => observer.observe(el));
+</script>

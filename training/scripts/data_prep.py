@@ -1,4 +1,4 @@
-"""XML→JSON 라벨 추출 + train/val/test 분할."""
+"""XML→JSON 라벨 추출 + 시스템 단위 크롭 + train/val/test 분할."""
 from __future__ import annotations
 
 import json
@@ -8,6 +8,8 @@ from pathlib import Path
 
 import music21 as m21
 from sklearn.model_selection import train_test_split
+
+from training.scripts.crop_staves import find_system_boundaries, crop_system
 
 log = logging.getLogger(__name__)
 
@@ -96,18 +98,71 @@ def split_dataset(items: list[dict], seed: int = 42) -> dict[str, list[dict]]:
     return {"train": train, "val": val, "test": test}
 
 
+def build_system_crops(
+    label: dict,
+    img_path: Path,
+    crops_dir: Path,
+    labels_dir: Path,
+) -> list[dict]:
+    """악보 1곡 → 시스템 단위 크롭 이미지 + 라벨 저장.
+
+    Returns:
+        시스템별 {"hymn_id", "system", "label_path"} 목록
+    """
+    measures = label["measures"]
+    hymn_id = label["hymn_id"]
+
+    boundaries = find_system_boundaries(img_path)
+    num_sys = len(boundaries)
+
+    # 마디를 시스템에 균등 배분 (나머지는 마지막 시스템에)
+    base = len(measures) // num_sys
+    remainder = len(measures) % num_sys
+    sys_measure_counts = [base + (1 if i < remainder else 0) for i in range(num_sys)]
+
+    items = []
+    m_idx = 0
+    for sys_idx, ((y0, y1), count) in enumerate(zip(boundaries, sys_measure_counts)):
+        sys_measures = measures[m_idx : m_idx + count]
+        m_idx += count
+        if not sys_measures:
+            continue
+
+        # 크롭 이미지 저장
+        crop_img = crop_system(img_path, y0, y1)
+        crop_path = crops_dir / f"hymn{hymn_id}_s{sys_idx}.png"
+        crop_img.save(str(crop_path))
+
+        # 시스템 라벨 저장
+        sys_label = {
+            "hymn_id": hymn_id,
+            "system": sys_idx,
+            "image_path": str(crop_path),
+            "time_signature": label["time_signature"],
+            "key_signature": label["key_signature"],
+            "measures": sys_measures,
+        }
+        label_path = labels_dir / f"hymn{hymn_id}_s{sys_idx}.json"
+        label_path.write_text(json.dumps(sys_label, ensure_ascii=False, indent=2), encoding="utf-8")
+        items.append({"hymn_id": hymn_id, "system": sys_idx, "label_path": str(label_path)})
+
+    return items
+
+
 def build_dataset(
     png_dir: Path = PNG_DIR,
     xml_dir: Path = XML_DIR,
     out_dir: Path = OUT_DIR,
 ) -> list[dict]:
-    """전체 XML 처리 → JSON 저장 → splits.json 저장."""
+    """전체 XML 처리 → 시스템 단위 크롭 + JSON 저장 → splits.json 저장."""
     out_dir.mkdir(parents=True, exist_ok=True)
     labels_dir = out_dir / "labels"
+    crops_dir = out_dir / "crops"
     labels_dir.mkdir(exist_ok=True)
+    crops_dir.mkdir(exist_ok=True)
 
-    items = []
-    failed = []
+    items: list[dict] = []
+    failed: list[str] = []
     xml_files = sorted(xml_dir.glob("새찬송가_*.xml"))
     for xml_path in xml_files:
         try:
@@ -116,23 +171,19 @@ def build_dataset(
             log.warning("SKIP %s: %s", xml_path.name, e)
             failed.append(xml_path.name)
             continue
-        # 이미지 존재 확인
-        img = Path(label["image_path"])
-        if not img.exists():
-            log.warning("이미지 없음: %s", img)
+        img_path = Path(label["image_path"])
+        if not img_path.exists():
+            log.warning("이미지 없음: %s", img_path)
             failed.append(xml_path.name)
             continue
-        label_path = labels_dir / f"hymn{label['hymn_id']}.json"
-        label_path.write_text(json.dumps(label, ensure_ascii=False, indent=2), encoding="utf-8")
-        items.append({"hymn_id": label["hymn_id"], "label_path": str(label_path)})
+        sys_items = build_system_crops(label, img_path, crops_dir, labels_dir)
+        items.extend(sys_items)
 
     splits = split_dataset(items)
     splits_path = out_dir / "splits.json"
     splits_path.write_text(json.dumps(splits, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    log.info("완료: %d 성공, %d 실패", len(items), len(failed))
-    if failed:
-        log.warning("실패 목록: %s", failed)
+    log.info("완료: 곡 %d개 → 시스템 %d개 (실패 %d)", len(xml_files) - len(failed), len(items), len(failed))
     return items
 
 
