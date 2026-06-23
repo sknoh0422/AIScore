@@ -4,7 +4,12 @@ from __future__ import annotations
 import json
 import logging
 import os
+import sys
 from pathlib import Path
+
+# ── MPS Fallback (torch import 이전) ────────────────────────────────────────
+if sys.platform == "darwin":
+    os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 import torch
 import torch.nn as nn
@@ -219,9 +224,6 @@ def get_device() -> torch.device:
 
 
 def train(epochs: int = EPOCHS) -> None:
-    # MPS CTC는 CPU fallback 필요 — import 이후, get_device() 호출 전에 설정
-    if torch.backends.mps.is_available():
-        os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     device = get_device()
     log.info("디바이스: %s", device)
 
