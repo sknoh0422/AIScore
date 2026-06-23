@@ -4,7 +4,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import sys
 from pathlib import Path
 
 import music21 as m21
@@ -35,6 +34,9 @@ def _note_to_dict(n: m21.note.GeneralNote) -> dict:
             "tie_start": False,
             "tie_end": False,
         }
+    if isinstance(n, m21.chord.Chord):
+        # 코드(화음)는 최저음을 대표음으로 사용
+        n = n.sortAscending().notes[0]
     pitch_str = n.pitch.nameWithOctave  # e.g., "A-4"
     tie_start = n.tie is not None and n.tie.type in ("start", "continue")
     tie_end = n.tie is not None and n.tie.type in ("stop", "continue")
@@ -59,7 +61,8 @@ def parse_xml(xml_path: Path) -> dict:
     # 박자표 / 조표
     ts = score.flatten().getElementsByClass("TimeSignature")
     ks = score.flatten().getElementsByClass("KeySignature")
-    time_sig = str(list(ts)[0]) if ts else "4/4"
+    ts_obj = list(ts)[0] if ts else None
+    time_sig = ts_obj.ratioString if ts_obj else "4/4"
     key_sig = list(ks)[0].sharps if ks else 0
 
     # 성부별 마디 → 음표 추출
