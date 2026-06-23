@@ -5,10 +5,6 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Iterator
-
-# MPS에서 CTC Loss는 미구현 — CPU fallback 활성화
-os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
 
 import torch
 import torch.nn as nn
@@ -20,12 +16,13 @@ from torch.utils.data import Dataset, DataLoader
 log = logging.getLogger(__name__)
 
 # ── 경로 상수 ──────────────────────────────────────────────────────────────────
-SPLITS_PATH = Path("training/data/splits.json")
-LABELS_DIR  = Path("training/data/labels")
-MODELS_DIR  = Path("training/models")
+_REPO_ROOT  = Path(__file__).resolve().parents[2]
+SPLITS_PATH = _REPO_ROOT / "training/data/splits.json"
+LABELS_DIR  = _REPO_ROOT / "training/data/labels"
+MODELS_DIR  = _REPO_ROOT / "training/models"
 
 VOICE_ORDER = ("S", "A", "T", "B")
-IMG_W, IMG_H = 256, 1024  # 학습 시 리사이즈 (가로×세로)
+IMG_W, IMG_H = 2048, 128  # landscape, T = 2048/16 = 128 frames
 BATCH_SIZE   = 8
 EPOCHS       = 30
 LR           = 1e-4
@@ -87,7 +84,7 @@ class NoteVocab:
                 indices.append(self._tok2idx["TIE_S"])
             if n.get("tie_end"):
                 indices.append(self._tok2idx["TIE_E"])
-        indices.append(self.eos_idx)
+        # EOS는 CTC target에 포함하지 않음 (CTC blank만 사용)
         return indices
 
     def decode(self, indices: list[int]) -> list[dict]:
@@ -123,7 +120,7 @@ class HymnDataset(Dataset):
 
     _transform = T.Compose([
         T.Grayscale(num_output_channels=3),
-        T.Resize((IMG_H, IMG_W)),
+        T.Resize((IMG_H, IMG_W)),  # (H, W) = (128, 2048)
         T.ToTensor(),
         T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]),
     ])
@@ -179,6 +176,7 @@ class OmrCRNN(nn.Module):
     def __init__(self, vocab_size: int) -> None:
         super().__init__()
         backbone = tv_models.resnet18(weights=tv_models.ResNet18_Weights.DEFAULT)
+        backbone.maxpool = nn.Identity()  # stride 32→16, T = IMG_W/16 = 128
         # 마지막 FC + avgpool 제거, spatial feature map 유지
         self.encoder = nn.Sequential(*list(backbone.children())[:-2])
         enc_channels = 512
@@ -221,6 +219,9 @@ def get_device() -> torch.device:
 
 
 def train(epochs: int = EPOCHS) -> None:
+    # MPS CTC는 CPU fallback 필요 — import 이후, get_device() 호출 전에 설정
+    if torch.backends.mps.is_available():
+        os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
     device = get_device()
     log.info("디바이스: %s", device)
 
@@ -292,8 +293,11 @@ def train(epochs: int = EPOCHS) -> None:
         if avg_val < best_val_loss:
             best_val_loss = avg_val
             ckpt = {
-                "epoch": epoch, "model_state": model.state_dict(),
-                "vocab_size": vocab.size, "val_loss": avg_val,
+                "epoch": epoch,
+                "model_state": model.state_dict(),
+                "vocab_size": vocab.size,
+                "vocab_tok2idx": vocab._tok2idx,  # vocab 변경 시 decoding 오류 방지
+                "val_loss": avg_val,
             }
             torch.save(ckpt, MODELS_DIR / "omr_crnn_best.pt")
             log.info("체크포인트 저장 (val=%.4f)", avg_val)
