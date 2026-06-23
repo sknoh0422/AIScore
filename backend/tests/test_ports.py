@@ -10,6 +10,10 @@ def test_oemer_adapter_satisfies_omr_port():
     from app.stages.omr.oemer_adapter import OemerAdapter
     assert isinstance(OemerAdapter(), OmrPort)
 
+def test_dl_omr_adapter_satisfies_omr_port():
+    from app.stages.omr.dl_omr_adapter import DlOmrAdapter
+    assert isinstance(DlOmrAdapter(work_dir=Path("/tmp"), model_path=None), OmrPort)
+
 def test_music21_parser_satisfies_parser_port():
     from app.stages.parsing.music21_parser import Music21Parser
     assert isinstance(Music21Parser(), ScoreParserPort)
