@@ -26,8 +26,8 @@ logging.basicConfig(
 )
 log = logging.getLogger(__name__)
 
-NWC_DIR = Path("score_images/nwc")
-XML_DIR = Path("score_images/xml")
+NWC_DIR = Path("score_images/nwc/분리")
+XML_DIR = Path("score_images/xml/분리")
 POLL_INTERVAL = 5  # 초
 
 
@@ -573,19 +573,29 @@ def _fix_xml_issues(xml_bytes: bytes) -> bytes:
     xml_str = xml_str.replace('<voice>1</voice>', '<voice>2</voice>')
     xml_str = xml_str.replace('<voice>__V1__</voice>', '<voice>1</voice>')
 
-    # B: Acoustic Grand Piano 악기명 제거
+    # 악기명 제거
     xml_str = re.sub(r'<part-name>[^<]*</part-name>', '<part-name/>', xml_str)
     xml_str = re.sub(r'<part-abbreviation>[^<]*</part-abbreviation>', '<part-abbreviation/>', xml_str)
 
-    # C: M7 (split-voice 마디) 수정
+    return xml_str.encode('utf-8')
+
+
+def _fix_xml_001(xml_bytes: bytes) -> bytes:
+    """새찬송가_001 합부악보 전용 후처리.
+
+    일반 규칙(_fix_xml_issues) 적용 후 추가 호출.
+    - M7 split-voice 마디: 줄기 방향 + D♭ 명시 내림표
+    - M8 못갖춘 마디 보상 쉼표 제거
+    """
+    import re
+    xml_str = xml_bytes.decode('utf-8')
+
     def fix_m7(m):
         block = m.group(0)
-        # C1: fill rest 유지 — print-object="no"로 cursor=40320 정합성 보존
-        #     (forward 사용 시 MuseScore 정렬 불안정, fill rest 복원이 안전)
-        # C2: 줄기 방향 — Voice1(알토,낮음)=down, Voice2(소프라노,높음)=up
+        # 줄기 방향 — Voice1(알토,낮음)=down, Voice2(소프라노,높음)=up
         block = block.replace('<voice>1</voice>', '<voice>1</voice>\n        <stem>down</stem>')
         block = block.replace('<voice>2</voice>', '<voice>2</voice>\n        <stem>up</stem>')
-        # C3: D♭ 명시적 내림표 추가 — 소프라노(D♭5) + 베이스(D♭3) 아래음만
+        # D♭ 명시 내림표 — 각 파트 마지막 코드 아래음(D♭5, D♭3)
         block = re.sub(
             r'(<step>D</step>\s*<alter>-1</alter>\s*<octave>\d</octave>.*?<type>quarter</type>)',
             r'\1\n        <accidental>flat</accidental>',
@@ -598,21 +608,209 @@ def _fix_xml_issues(xml_bytes: bytes) -> bytes:
         fix_m7, xml_str, flags=re.DOTALL
     )
 
-    # D: M8 (9번째 마디) 못갖춘 마디 보상 쉼표 제거
-    def fix_m8(m):
-        block = m.group(0)
-        block = re.sub(
-            r'\s*<note print-object="no"[^>]*>.*?</note>',
-            '', block, flags=re.DOTALL
-        )
-        return block
-
+    # M8: 못갖춘 마디 보상 쉼표 제거 (못갖춘 첫마디 1박 ↔ 마지막 3박)
     xml_str = re.sub(
         r'<measure[^>]+number="8">.*?</measure>',
-        fix_m8, xml_str, flags=re.DOTALL
+        lambda m: re.sub(
+            r'\s*<note print-object="no"[^>]*>.*?</note>', '', m.group(0), flags=re.DOTALL
+        ),
+        xml_str, flags=re.DOTALL
     )
 
     return xml_str.encode('utf-8')
+
+
+def _merge_unison_chords(xml_bytes: bytes) -> bytes:
+    """비트 그룹 내 동음 chord 음표 제거.
+
+    합부악보 구조: S+A(또는 T+B)가 같은 파트에 <chord/> 태그로 묶임.
+    같은 비트 그룹 안에 동일 음고가 있으면 중복 chord 음표를 제거.
+    """
+    import re
+    from xml.etree import ElementTree as ET
+
+    xml_str = xml_bytes.decode('utf-8')
+
+    # DOCTYPE 분리 (ElementTree 파서가 처리 못함)
+    doctype_match = re.search(r'<!DOCTYPE[^>]*>', xml_str)
+    doctype = doctype_match.group(0) if doctype_match else ''
+    xml_no_doctype = re.sub(r'<!DOCTYPE[^>]*>', '', xml_str, count=1)
+
+    try:
+        root = ET.fromstring(xml_no_doctype)
+    except ET.ParseError:
+        return xml_bytes
+
+    removed = 0
+
+    for measure in root.iter('measure'):
+        children = list(measure)
+        to_remove = []
+        i = 0
+        while i < len(children):
+            elem = children[i]
+            # <chord/> 없는 note = 비트 그룹 시작
+            if elem.tag != 'note' or elem.find('chord') is not None:
+                i += 1
+                continue
+            # 그룹 수집: 이 note + 이어지는 chord notes
+            group = [i]
+            j = i + 1
+            while j < len(children) and children[j].tag == 'note' and children[j].find('chord') is not None:
+                group.append(j)
+                j += 1
+            # 그룹 내 중복 피치 검사
+            seen: set = set()
+            for idx in group:
+                pitch_elem = children[idx].find('pitch')
+                if pitch_elem is None:
+                    key = 'rest'
+                else:
+                    key = (
+                        pitch_elem.findtext('step') or '',
+                        pitch_elem.findtext('alter') or '0',
+                        pitch_elem.findtext('octave') or '',
+                    )
+                if key in seen:
+                    to_remove.append(children[idx])
+                else:
+                    seen.add(key)
+            i = j
+
+        for elem in to_remove:
+            measure.remove(elem)
+            removed += 1
+
+    if removed:
+        log.info("  동음 중복 제거: %d개", removed)
+
+    # 들여쓰기 복원 후 직렬화
+    ET.indent(root, space='  ')
+    xml_decl = '<?xml version="1.0" encoding="utf-8"?>\n'
+    if doctype:
+        xml_decl += doctype + '\n'
+    body = ET.tostring(root, encoding='unicode')
+    return (xml_decl + body).encode('utf-8')
+
+
+def _fix_pickup_measure(xml_bytes: bytes) -> bytes:
+    """못갖춘 마디 앞에 invisible rest 배치.
+
+    각 파트에서 최초로 실음(visible non-rest)이 나오는 마디를 찾아:
+    - 기존 invisible fill rest 제거
+    - gap(전체 박자 - 실음 총 길이) 만큼 print-object="no" 쉼표를 첫 음 앞에 배치
+    → 합부악보(M0 implicit=yes)와 분리악보(M1 implicit=no) 모두 처리.
+    """
+    import re
+    from xml.etree import ElementTree as ET
+
+    _BEAT_NAME = {1: 'whole', 2: 'half', 4: 'quarter', 8: 'eighth', 16: '16th', 32: '32nd'}
+
+    def make_fill_rests(gap: int, beat_dur: int, beat_type: int) -> list:
+        rests = []
+        remaining = gap
+        for dur_unit, type_name in [
+            (beat_dur * 4, 'whole'),
+            (beat_dur * 3, 'half'),
+            (beat_dur * 2, 'half'),
+            (beat_dur,     _BEAT_NAME.get(beat_type, 'quarter')),
+            (beat_dur // 2, _BEAT_NAME.get(beat_type * 2, 'eighth')),
+            (beat_dur // 4, _BEAT_NAME.get(beat_type * 4, '16th')),
+        ]:
+            if dur_unit <= 0:
+                continue
+            while remaining >= dur_unit:
+                e = ET.Element('note', {'print-object': 'no'})
+                ET.SubElement(e, 'rest')
+                ET.SubElement(e, 'duration').text = str(dur_unit)
+                ET.SubElement(e, 'type').text = type_name
+                if dur_unit == beat_dur * 3:
+                    ET.SubElement(e, 'dot')
+                rests.append(e)
+                remaining -= dur_unit
+        return rests
+
+    xml_str = xml_bytes.decode('utf-8')
+    doctype_match = re.search(r'<!DOCTYPE[^>]*>', xml_str)
+    doctype = doctype_match.group(0) if doctype_match else ''
+    xml_no_doctype = re.sub(r'<!DOCTYPE[^>]*>', '', xml_str, count=1)
+
+    try:
+        root = ET.fromstring(xml_no_doctype)
+    except ET.ParseError:
+        return xml_bytes
+
+    changed = False
+
+    for part in root.iter('part'):
+        # divisions / 박자 수집
+        divisions = beats = beat_type = None
+        for m in part.iter('measure'):
+            attrs = m.find('attributes')
+            if attrs is not None:
+                if divisions is None:
+                    d = attrs.find('divisions')
+                    if d is not None:
+                        divisions = int(d.text)
+                if beats is None:
+                    t = attrs.find('time')
+                    if t is not None:
+                        b, bt = t.find('beats'), t.find('beat-type')
+                        if b is not None and bt is not None:
+                            beats, beat_type = int(b.text), int(bt.text)
+            if divisions and beats and beat_type:
+                break
+
+        if not (divisions and beats and beat_type):
+            continue
+
+        beat_dur = divisions * 4 // beat_type
+        total_dur = beats * beat_dur
+
+        # 실음이 있는 첫 마디 탐색
+        for m in part.iter('measure'):
+            visible_notes = [
+                n for n in m.findall('note')
+                if n.find('chord') is None
+                and n.find('rest') is None
+                and n.get('print-object') != 'no'
+                and n.find('duration') is not None
+            ]
+            if not visible_notes:
+                continue
+
+            # pickup duration
+            pickup_dur = sum(int(n.find('duration').text) for n in visible_notes)
+            gap = total_dur - pickup_dur
+            if gap <= 0:
+                break  # 첫 실음 마디가 full → 못갖춘 마디 아님
+
+            # 기존 invisible fill rest 제거 (잘못된 위치에 있을 수 있음)
+            for n in list(m.findall('note')):
+                if n.get('print-object') == 'no' and n.find('rest') is not None:
+                    m.remove(n)
+
+            # 첫 note 위치에 새 fill rest 삽입
+            children = list(m)
+            first_note_idx = next((i for i, c in enumerate(children) if c.tag == 'note'), None)
+            if first_note_idx is None:
+                break
+
+            for i, r in enumerate(make_fill_rests(gap, beat_dur, beat_type)):
+                m.insert(first_note_idx + i, r)
+
+            log.info("  못갖춘 마디 보정(M%s): gap=%d", m.get('number', '?'), gap)
+            changed = True
+            break  # 파트 당 첫 실음 마디 하나만 처리
+
+    if not changed:
+        return xml_bytes
+
+    ET.indent(root, space='  ')
+    xml_decl = '<?xml version="1.0" encoding="utf-8"?>\n'
+    if doctype:
+        xml_decl += doctype + '\n'
+    return (xml_decl + ET.tostring(root, encoding='unicode')).encode('utf-8')
 
 
 # ── 단일 파일 변환 ─────────────────────────────────────────────────────────────
@@ -633,6 +831,8 @@ def convert_one(nwc_path: Path, xml_dir: Path) -> bool:
         gex = musicxml.m21ToXml.GeneralObjectExporter(stream)
         xml_bytes = gex.parse()
         xml_bytes = _fix_xml_issues(xml_bytes)
+        xml_bytes = _merge_unison_chords(xml_bytes)
+        xml_bytes = _fix_pickup_measure(xml_bytes)
 
         out_path.write_bytes(xml_bytes)
         kb = out_path.stat().st_size / 1024
@@ -649,16 +849,32 @@ def convert_one(nwc_path: Path, xml_dir: Path) -> bool:
 # ── 메인 루프 ─────────────────────────────────────────────────────────────────
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="NWC → MusicXML 변환 데몬")
+    parser.add_argument('--reconvert', action='store_true',
+                        help='기존 XML/err 파일 무시하고 전체 재변환 후 종료')
+    args = parser.parse_args()
+
     _patch_music21()
 
     NWC_DIR.mkdir(parents=True, exist_ok=True)
     XML_DIR.mkdir(parents=True, exist_ok=True)
 
+    if args.reconvert:
+        log.info("재변환 모드: %s 전체 처리", NWC_DIR)
+        nwc_files = sorted(NWC_DIR.glob("*.nwc")) + sorted(NWC_DIR.glob("*.nwz"))
+        ok = fail = 0
+        for nwc_path in nwc_files:
+            if convert_one(nwc_path, XML_DIR):
+                ok += 1
+            else:
+                fail += 1
+        log.info("재변환 완료: 성공 %d / 실패 %d / 총 %d", ok, fail, ok + fail)
+        return
+
     log.info("감시 시작: %s → %s (폴링 %ds)", NWC_DIR, XML_DIR, POLL_INTERVAL)
 
     converted: set[str] = set()
-
-    # 이미 존재하는 XML/오류 파일은 완료로 표시
     for f in XML_DIR.iterdir():
         if f.suffix in (".xml", ".err"):
             converted.add(f.stem)

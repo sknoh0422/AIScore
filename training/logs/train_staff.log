@@ -1,0 +1,73 @@
+INFO 디바이스: mps
+
+[TREBLE 학습 시작]  train=1237  val=170
+------------------------------------------------------------
+/opt/miniconda3/envs/aiscore/lib/python3.10/site-packages/torch/nn/functional.py:3107: UserWarning: The operator 'aten::_ctc_loss' is not currently supported on the MPS backend and will fall back to run on the CPU. This may have performance implications. (Triggered internally at /Users/runner/work/pytorch/pytorch/pytorch/aten/src/ATen/mps/MPSFallback.mm:15.)
+  return torch.ctc_loss(
+Epoch   1/30  train=7.4962  val=5.3700  65s  ★
+Epoch   2/30  train=5.4557  val=5.2599  225s  ★
+Epoch   3/30  train=5.3375  val=5.1659  933s  ★
+Epoch   4/30  train=5.2454  val=5.1331  70s  ★
+Epoch   5/30  train=5.1689  val=5.0653  509s  ★
+Epoch   6/30  train=5.0666  val=4.9653  82s  ★
+Epoch   7/30  train=4.9952  val=4.9642  1019s  ★
+Epoch   8/30  train=4.9542  val=4.9441  119s  ★
+Epoch   9/30  train=4.9079  val=4.9030  972s  ★
+Epoch  10/30  train=4.8838  val=4.8832  136s  ★
+Epoch  11/30  train=4.8483  val=4.9045  93s
+Epoch  12/30  train=4.8084  val=4.9752  1303s
+Epoch  13/30  train=4.7599  val=4.9070  396s
+Epoch  14/30  train=4.7134  val=4.8778  107s  ★
+Epoch  15/30  train=4.6785  val=4.8827  504s
+Epoch  16/30  train=4.6276  val=4.8950  872s
+Epoch  17/30  train=4.5808  val=4.8547  84s  ★
+Epoch  18/30  train=4.5278  val=4.8872  979s
+Epoch  19/30  train=4.4482  val=4.8034  657s  ★
+Epoch  20/30  train=4.3646  val=4.7407  1018s  ★
+Epoch  21/30  train=4.2878  val=4.7403  116s  ★
+Epoch  22/30  train=4.1872  val=4.8053  998s
+Epoch  23/30  train=4.0968  val=4.8778  1070s
+Epoch  24/30  train=3.9875  val=4.7632  60s
+Epoch  25/30  train=3.8190  val=4.7079  123s  ★
+Epoch  26/30  train=3.7386  val=4.7188  1022s
+Epoch  27/30  train=3.6987  val=4.7233  2074s
+Epoch  28/30  train=3.6626  val=4.7297  58s
+Epoch  29/30  train=3.6294  val=4.7177  58s
+Epoch  30/30  train=3.5940  val=4.7220  1033s
+------------------------------------------------------------
+[TREBLE 완료]  best_val=4.7079  총 소요=279.3분
+
+[BASS 학습 시작]  train=1293  val=147
+------------------------------------------------------------
+Epoch   1/30  train=7.6589  val=6.0986  123s  ★
+Epoch   2/30  train=5.6151  val=5.9488  85s  ★
+Epoch   3/30  train=5.5735  val=5.7798  998s  ★
+Epoch   4/30  train=5.4934  val=5.7696  1021s  ★
+Epoch   5/30  train=5.2987  val=5.2831  60s  ★
+Epoch   6/30  train=5.1851  val=5.0130  60s  ★
+Epoch   7/30  train=5.0815  val=4.9756  60s  ★
+Epoch   8/30  train=5.0414  val=5.1992  61s
+Epoch   9/30  train=4.9734  val=5.0056  60s
+Epoch  10/30  train=4.9198  val=4.7755  61s  ★
+Epoch  11/30  train=4.8515  val=4.8125  61s
+Epoch  12/30  train=4.7737  val=4.7891  61s
+Epoch  13/30  train=4.7175  val=4.7235  61s  ★
+Epoch  14/30  train=4.6323  val=4.6695  61s  ★
+Epoch  15/30  train=4.5715  val=4.6253  61s  ★
+Epoch  16/30  train=4.5006  val=4.6567  61s
+Epoch  17/30  train=4.4171  val=4.5942  61s  ★
+Epoch  18/30  train=4.3606  val=4.7489  61s
+Epoch  19/30  train=4.3013  val=4.5943  61s
+Epoch  20/30  train=4.2209  val=4.7541  60s
+Epoch  21/30  train=4.1566  val=4.7201  61s
+Epoch  22/30  train=4.0070  val=4.6831  61s
+Epoch  23/30  train=3.9443  val=4.6295  61s
+Epoch  24/30  train=3.9107  val=4.6438  61s
+Epoch  25/30  train=3.8807  val=4.6777  61s
+Epoch  26/30  train=3.8497  val=4.6575  61s
+Epoch  27/30  train=3.8486  val=4.6862  61s
+Epoch  28/30  train=3.8436  val=4.6556  61s
+Epoch  29/30  train=3.8391  val=4.6615  61s
+Epoch  30/30  train=3.8359  val=4.6751  61s
+------------------------------------------------------------
+[BASS 완료]  best_val=4.5942  총 소요=63.4분
