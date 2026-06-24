@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>AIScore — 악보 파일 뷰어</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #0f1117; color: #e2e8f0; }
+  header { padding: 20px 32px; border-bottom: 1px solid #1e2433; display: flex; align-items: center; gap: 12px; }
+  header h1 { font-size: 1.2rem; font-weight: 600; color: #fff; }
+  header span { font-size: 0.8rem; color: #64748b; background: #1e2433; padding: 3px 10px; border-radius: 12px; }
+  .section { padding: 24px 32px; }
+  .section h2 { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: #64748b; margin-bottom: 16px; }
+  .nwc-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 16px; }
+  .nwc-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 10px; padding: 20px; }
+  .nwc-card .filename { font-size: 0.85rem; color: #94a3b8; font-family: monospace; margin-bottom: 12px; word-break: break-all; }
+  .nwc-card .title { font-size: 1.1rem; font-weight: 600; color: #fff; margin-bottom: 8px; }
+  .nwc-card .meta { font-size: 0.8rem; color: #64748b; line-height: 1.8; }
+  .nwc-card .lyrics { margin-top: 12px; padding: 10px 14px; background: #0f1117; border-radius: 6px; font-size: 0.85rem; color: #a78bfa; letter-spacing: 0.15em; line-height: 1.9; }
+  .nwc-card .badge { display: inline-block; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-right: 4px; margin-top: 6px; }
+  .badge-satb { background: #1e3a5f; color: #60a5fa; }
+  .badge-nwz  { background: #2d1b4e; color: #a78bfa; }
+  .badge-nwc  { background: #1a3a2a; color: #34d399; }
+  .png-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+  .png-card { background: #1a1f2e; border: 1px solid #1e2433; border-radius: 10px; overflow: hidden; cursor: pointer; transition: border-color .2s; }
+  .png-card:hover { border-color: #6366f1; }
+  .png-card img { width: 100%; display: block; }
+  .png-card .label { padding: 10px 14px; font-size: 0.8rem; color: #94a3b8; font-family: monospace; }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.85); z-index: 100; align-items: center; justify-content: center; }
+  .modal.open { display: flex; }
+  .modal img { max-width: 92vw; max-height: 92vh; border-radius: 6px; }
+  .modal-close { position: fixed; top: 16px; right: 20px; font-size: 1.8rem; cursor: pointer; color: #fff; }
+  hr { border: none; border-top: 1px solid #1e2433; margin: 0 32px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AIScore 악보 뷰어</h1>
+  <span>score_images/</span>
+</header>
+
+<div class="section">
+  <h2>NWC 악보 파일 (새찬송가 1장)</h2>
+  <div class="nwc-grid">
+
+    <div class="nwc-card">
+      <div class="filename">새찬송가_001 만복의근원하나님.nwc</div>
+      <div class="title">만복의 근원 하나님</div>
+      <div class="meta">
+        새찬송가 1장 · 곡: Old Hundredth (1551)<br>
+        형식: NWC 바이너리 · 크기: 3.4 KB
+        <span class="badge badge-nwc">NWC</span>
+        <span class="badge badge-satb">SATB 4성부</span>
+      </div>
+      <div class="lyrics">
+        만 복 의 근 원 하 나 님<br>
+        온 백 성 찬 송 드 리 고<br>
+        저 천 사 여 찬 송 하 세<br>
+        찬 송 성 부 성 자 성 령<br>
+        아 멘
+      </div>
+    </div>
+
+    <div class="nwc-card">
+      <div class="filename">새찬송가_001 합부악보.nwc</div>
+      <div class="title">만복의 근원 하나님 (합부악보)</div>
+      <div class="meta">
+        새찬송가 1장 합창 편곡 · 크기: 773 B<br>
+        형식: NWZ(압축 NWC) · 가사 포함
+        <span class="badge badge-nwz">NWZ 압축</span>
+        <span class="badge badge-satb">SATB + 가사</span>
+      </div>
+      <div class="lyrics">
+        [압축 해제 확인] EUC-KR 가사 내장<br>
+        만·복·의·근·원·하·나·님<br>
+        온·백·성·찬·송·드·리·고<br>
+        저·천·사·여·찬·송·하·세<br>
+        성·부·성·자·성·령·아·멘
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<hr>
+
+<div class="section">
+  <h2>PNG 악보 이미지 (클릭하면 확대)</h2>
+  <div class="png-grid" id="pngGrid"></div>
+</div>
+
+<div class="modal" id="modal" onclick="closeModal()">
+  <span class="modal-close">✕</span>
+  <img id="modalImg" src="" alt="">
+</div>
+
+<script>
+const images = [
+  'hymn315_Normal.png',
+  'hymn316_Normal.png',
+  'hymn317_Normal.png',
+  'hymn318_Normal.png',
+  'hymn319_Normal.png',
+  '온맘다해.png',
+];
+
+const grid = document.getElementById('pngGrid');
+images.forEach(name => {
+  const card = document.createElement('div');
+  card.className = 'png-card';
+  card.innerHTML = `<img src="${name}" alt="${name}" loading="lazy"><div class="label">${name}</div>`;
+  card.onclick = () => openModal(name);
+  grid.appendChild(card);
+});
+
+function openModal(src) {
+  document.getElementById('modalImg').src = src;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('modal').classList.remove('open');
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+</body>
+</html>
