@@ -57,8 +57,8 @@ class Handler(BaseHTTPRequestHandler):
         if path.startswith("/img/"):
             name = path[len("/img/"):]
             for d in IMG_DIRS:
-                f = d / name
-                if f.exists():
+                f = (d / name).resolve()
+                if f.is_file() and str(f).startswith(str(d.resolve())):  # 경로 순회 차단
                     self._send(200, f.read_bytes(), CT[".png"])
                     return
             self._send(404, "no image")
