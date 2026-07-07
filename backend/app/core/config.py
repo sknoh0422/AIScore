@@ -38,3 +38,9 @@ def omr_model_path() -> Path | None:
 def paddleocr_lang() -> str:
     """PaddleOCR 언어 설정. 기본값 'korean'."""
     return os.environ.get("AISCORE_PADDLEOCR_LANG", "korean")
+
+def homr_bin() -> str:
+    """homr CLI 실행파일 경로. 기본: 형제 clone의 venv 실행파일."""
+    return os.environ.get(
+        "AISCORE_HOMR_BIN",
+        str(_REPO.parent / "homr" / ".venv" / "bin" / "homr"))
