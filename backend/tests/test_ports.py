@@ -21,3 +21,7 @@ def test_vowel_synth_satisfies_svs_port():
 def test_mixer_satisfies_mixer_port():
     from app.stages.mixing.mixer import Mixer
     assert isinstance(Mixer(), MixerPort)
+
+def test_homr_adapter_satisfies_omr_port():
+    from app.stages.omr.homr_adapter import HomrAdapter
+    assert isinstance(HomrAdapter(work_dir=Path("/tmp")), OmrPort)
