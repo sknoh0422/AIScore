@@ -159,7 +159,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--pred", type=Path, required=True, help="예측 MusicXML 디렉터리")
     ap.add_argument("--tag", default="baseline", help="결과 파일 태그")
+    ap.add_argument("--gt-dir", type=Path, default=None,
+                    help="GT XML 디렉터리 재지정(기본: score_images/xml/분리)")
     args = ap.parse_args()
+
+    if args.gt_dir is not None:
+        global GT_XML_DIR
+        GT_XML_DIR = args.gt_dir
+        log.info("GT 디렉터리 재지정: %s", GT_XML_DIR)
 
     pred_files = sorted(
         list(args.pred.glob("*.musicxml")) + list(args.pred.glob("*.xml"))

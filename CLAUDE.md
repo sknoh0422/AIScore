@@ -121,3 +121,4 @@ queued → omr → parsing → [lyric → align] → synth → mixing → done
 18. 수직 슬라이스 우선
 19. `training/`(트랙B): 서빙 요청 경로 진입 금지
 20. 응답·문서·주석: 한국어 기본
+21. 약어(略語)는 첫 등장 시 반드시 풀네임을 괄호로 병기. 예: OMR(Optical Music Recognition), GT(Ground Truth), SATB(Soprano Alto Tenor Bass)

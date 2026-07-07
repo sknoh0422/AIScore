@@ -1,0 +1,30 @@
+* { box-sizing: border-box; }
+body { font-family: system-ui, "Apple SD Gothic Neo", sans-serif; margin: 0; background: #f5f5f7; color: #111; }
+header { position: sticky; top: 0; background: #fff; border-bottom: 1px solid #ddd; padding: 10px 16px; z-index: 10; }
+header h1 { font-size: 16px; margin: 0 0 8px; }
+#prog { color: #0a7; font-weight: 600; }
+#nav { display: flex; gap: 8px; align-items: center; }
+#nav button { padding: 6px 12px; border: 1px solid #ccc; border-radius: 8px; background: #fff; cursor: pointer; }
+#nav button:hover { background: #f0f0f0; }
+#pos { font-variant-numeric: tabular-nums; min-width: 72px; text-align: center; }
+main { max-width: 900px; margin: 16px auto; padding: 0 16px; }
+.meta { font-size: 18px; margin-bottom: 8px; }
+.meta .f1 { display: block; font-size: 13px; color: #666; margin-top: 4px; }
+.hint { font-size: 12px; color: #888; margin: 4px 0 10px; }
+.zoom { height: 300px; background-repeat: no-repeat; background-position: 1% 5%; background-size: 300%;
+        border: 1px solid #ccc; border-radius: 8px; background-color: #fff; }
+.choices { display: flex; gap: 12px; margin: 16px 0; }
+.opt { flex: 1; padding: 16px; border: 2px solid #ccc; border-radius: 12px; background: #fff;
+       cursor: pointer; font-size: 14px; line-height: 1.5; text-align: center; }
+.opt:hover { border-color: #1C60EF; }
+.opt big { display: block; font-size: 26px; font-weight: 700; margin: 4px 0; }
+.opt small { color: #888; }
+.opt.sel { border-color: #1C60EF; background: #DBE8FE; }
+.skip { padding: 16px; border: 2px dashed #ccc; border-radius: 12px; background: #fff; cursor: pointer; }
+.other { margin: 8px 0; font-size: 13px; color: #555; }
+.other select { padding: 5px 8px; border: 1px solid #ccc; border-radius: 6px; margin: 0 6px; }
+.other button { padding: 5px 12px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; }
+.status { margin: 8px 0; font-size: 14px; color: #333; }
+.status.done { color: #1C60EF; font-weight: 600; }
+.full-label { margin-top: 16px; font-size: 13px; color: #666; font-weight: 600; }
+.full { width: 100%; border: 1px solid #ddd; border-radius: 8px; margin-top: 6px; background: #fff; }
