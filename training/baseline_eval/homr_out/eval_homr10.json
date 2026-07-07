@@ -1,0 +1,121 @@
+{
+  "tag": "homr10",
+  "n_scores": 10,
+  "avg_bag_precision": 0.8839,
+  "avg_bag_recall": 0.8793,
+  "avg_bag_f1": 0.8815,
+  "avg_ser_treble": 0.2861,
+  "avg_ser_bass": 0.2607,
+  "results": [
+    {
+      "pred": "hymn001_Normal.musicxml",
+      "gt": "새찬송가_001 만복의근원하나님.xml",
+      "gt_notes": 136,
+      "pred_notes": 132,
+      "bag_precision": 0.9848,
+      "bag_recall": 0.9559,
+      "bag_f1": 0.9701,
+      "ser_treble": 0.2941,
+      "ser_bass": 0.0294
+    },
+    {
+      "pred": "hymn002_Normal.musicxml",
+      "gt": "새찬송가_002 찬양성부성자성령.xml",
+      "gt_notes": 152,
+      "pred_notes": 154,
+      "bag_precision": 0.961,
+      "bag_recall": 0.9737,
+      "bag_f1": 0.9673,
+      "ser_treble": 0.0513,
+      "ser_bass": 0.0541
+    },
+    {
+      "pred": "hymn010_Normal.musicxml",
+      "gt": "새찬송가_010 전능왕오셔서.xml",
+      "gt_notes": 164,
+      "pred_notes": 168,
+      "bag_precision": 0.8869,
+      "bag_recall": 0.9085,
+      "bag_f1": 0.8976,
+      "ser_treble": 0.2927,
+      "ser_bass": 0.2927
+    },
+    {
+      "pred": "hymn050_Normal.musicxml",
+      "gt": "새찬송가_050 내게있는모든것을.xml",
+      "gt_notes": 228,
+      "pred_notes": 226,
+      "bag_precision": 0.9646,
+      "bag_recall": 0.9561,
+      "bag_f1": 0.9604,
+      "ser_treble": 0.1818,
+      "ser_bass": 0.0847
+    },
+    {
+      "pred": "hymn100_Normal.musicxml",
+      "gt": "새찬송가_100+ 미리암과여인들이.xml",
+      "gt_notes": 267,
+      "pred_notes": 264,
+      "bag_precision": 1.0,
+      "bag_recall": 0.9888,
+      "bag_f1": 0.9944,
+      "ser_treble": 0.0152,
+      "ser_bass": 0.4265
+    },
+    {
+      "pred": "hymn150_Normal.musicxml",
+      "gt": "새찬송가_150 갈보리산 위에.xml",
+      "gt_notes": 340,
+      "pred_notes": 355,
+      "bag_precision": 0.938,
+      "bag_recall": 0.9794,
+      "bag_f1": 0.9583,
+      "ser_treble": 0.4535,
+      "ser_bass": 0.2791
+    },
+    {
+      "pred": "hymn200_Normal.musicxml",
+      "gt": "새찬송가_200 달고 오묘한 그 말씀.xml",
+      "gt_notes": 290,
+      "pred_notes": 275,
+      "bag_precision": 0.3564,
+      "bag_recall": 0.3379,
+      "bag_f1": 0.3469,
+      "ser_treble": 0.9333,
+      "ser_bass": 1.0
+    },
+    {
+      "pred": "hymn300_Normal.musicxml",
+      "gt": "새찬송가_300 내 맘이 낙심되며.xml",
+      "gt_notes": 344,
+      "pred_notes": 339,
+      "bag_precision": 0.9882,
+      "bag_recall": 0.9738,
+      "bag_f1": 0.981,
+      "ser_treble": 0.0349,
+      "ser_bass": 0.0116
+    },
+    {
+      "pred": "hymn400_Normal.musicxml",
+      "gt": "새찬송가_400 험한 시험 물속에서.xml",
+      "gt_notes": 256,
+      "pred_notes": 251,
+      "bag_precision": 0.9801,
+      "bag_recall": 0.9609,
+      "bag_f1": 0.9704,
+      "ser_treble": 0.0909,
+      "ser_bass": 0.1129
+    },
+    {
+      "pred": "hymn500_Normal.musicxml",
+      "gt": "새찬송가_500 물 위에 생명줄 던지어라.xml",
+      "gt_notes": 302,
+      "pred_notes": 294,
+      "bag_precision": 0.7789,
+      "bag_recall": 0.7583,
+      "bag_f1": 0.7685,
+      "ser_treble": 0.5132,
+      "ser_bass": 0.3158
+    }
+  ]
+}
