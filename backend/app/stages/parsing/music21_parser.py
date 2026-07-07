@@ -3,6 +3,9 @@
 Audiveris 출력 구조:
   - Grand staff 2-Part: Part0(G clef)=S+A 화음, Part1(F clef)=T+B 화음
   - 화음 상단 → 위 성부(S/T), 하단 → 아래 성부(A/B) 로 분리
+homr 출력 구조:
+  - 단일 "Piano" 파트가 music21에서 2개 PartStaff(treble/bass)로 파싱됨.
+  - 파트명이 "Piano"라 악기 필터에 걸리므로, 필터 결과가 0줄이면 필터를 해제(폴백).
 
 악기 필터: 파트명에 악기 키워드(Piano, Organ 등)가 있으면 제외.
 파트명 없으면 성악으로 간주(폴백).
@@ -64,30 +67,13 @@ class Music21Parser:
         parsed = converter.parse(str(musicxml_path))
         parts = list(parsed.getElementsByClass(stream.Part))
 
-        lines: list[list[Note]] = []
-        for part in parts:
-            if not _is_vocal_part(part):
-                continue
-            elements = list(part.recurse().notesAndRests)
-            has_chord = any(hasattr(e, "pitches") and len(e.pitches) >= 2 for e in elements)
-            if has_chord:
-                # 화음 포함 → 상단/하단 성부 분리
-                upper, lower = _split_two_voices(elements)
-                if upper:
-                    lines.append(upper)
-                if lower:
-                    lines.append(lower)
-            else:
-                # 단선율 → 그대로
-                ns: list[Note] = []
-                for el in elements:
-                    dur = float(el.duration.quarterLength)
-                    if isinstance(el, m21note.Rest):
-                        ns.append(Note(pitch=None, quarter_length=dur))
-                    elif isinstance(el, m21note.Note):
-                        ns.append(Note(pitch=el.pitch.nameWithOctave, quarter_length=dur))
-                if ns:
-                    lines.append(ns)
+        # 1차: 악기 파트 제외(Audiveris 반주 배제용)
+        lines = self._extract_lines(parts, vocal_only=True)
+        if not lines:
+            # 모든 파트가 악기명이지만 실제 성악 내용인 경우
+            # (homr는 항상 파트명을 "Piano"로 내보냄) → 필터 해제 재추출
+            _logger.info("성악 파트 필터 결과 0줄 → 악기 필터 해제 폴백")
+            lines = self._extract_lines(parts, vocal_only=False)
 
         if not lines:
             raise ParseError(f"파싱 결과 음표 없음: {musicxml_path}")
@@ -96,3 +82,30 @@ class Music21Parser:
         for vn, notes in zip(_ORDER, lines):
             voices_map[vn] = Voice(name=vn, notes=notes)
         return Score(voices=voices_map)
+
+    def _extract_lines(self, parts, vocal_only: bool) -> list[list[Note]]:
+        lines: list[list[Note]] = []
+        for part in parts:
+            if vocal_only and not _is_vocal_part(part):
+                continue
+            elements = list(part.recurse().notesAndRests)
+            has_chord = any(hasattr(e, "pitches") and len(e.pitches) >= 2
+                            for e in elements)
+            if has_chord:
+                upper, lower = _split_two_voices(elements)
+                if upper:
+                    lines.append(upper)
+                if lower:
+                    lines.append(lower)
+            else:
+                ns: list[Note] = []
+                for el in elements:
+                    dur = float(el.duration.quarterLength)
+                    if isinstance(el, m21note.Rest):
+                        ns.append(Note(pitch=None, quarter_length=dur))
+                    elif isinstance(el, m21note.Note):
+                        ns.append(Note(pitch=el.pitch.nameWithOctave,
+                                       quarter_length=dur))
+                if ns:
+                    lines.append(ns)
+        return lines
