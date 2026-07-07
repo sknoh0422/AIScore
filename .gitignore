@@ -2,6 +2,18 @@
 /data/
 backend/data/
 
+# OMR 실측/평가 대용량 데이터·산출물 (D13) — 요약 JSON만 커밋
+# score_images/ 전체(png 223M·xml 81M 등). 이미 tracked인 샘플(315.JPG·온맘다해.png)은 유지됨.
+/score_images/
+# 평가 배치 산출물(homr_full 2.2G·homr_out 38M): png·musicxml·로그 제외, eval_*.json 요약만 커밋.
+training/baseline_eval/**/*.png
+training/baseline_eval/**/*.musicxml
+training/baseline_eval/**/*.mxl
+training/baseline_eval/**/*.log
+training/baseline_eval/**/todo.txt
+# 학습용 대용량 데이터셋(crops·labels 636M, OMR 실험 산출). splits*.json 포함 재생성 가능.
+/training/data/
+
 # 빌드된 외부 엔진(대용량, 비커밋) — Audiveris 등
 /vendor/
 

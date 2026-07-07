@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-06-22 (6차)
+**최종 갱신:** 2026-07-07 (7차)
 
 ---
 
@@ -37,24 +37,32 @@
   - 구현: 전처리 → 레이아웃 분석 → YOLOv8 OMR 엔진 → 메타 추출 → 가사 OCR(PaddleOCR) → MusicXML 조립 → `ScoreUnderstandingAdapter(OmrPort)`
   - 현재 상태: YOLOv8 모델 미학습(더미 패스스루). 다음 단계 = 모델 학습(Plan 1B)
 - **MD 파일 체계 재구성** — `docs/superpowers/` 제거, `docs/plans/` · `docs/specs/` · `raw/project_start.md` 정착
+- **homr 사전학습 OMR 기준선 실측 (645곡)** — 브랜치 `feat/omr-baseline-eval`(main 미머지), `f5d7696`
+  - GT: `nwc2xml`로 새찬송가 645곡 정답 MusicXML 생성(001 XML 품질 버그 12종 수정 포함).
+  - 평가: `training/scripts/eval_baseline.py` — bag-of-notes P/R/F1 + 성부별 SER.
+  - 결과: 실행 성공 **643/645**(실패 hymn040·hymn177), 평균 피치 **F1 83.2%**(중앙값 89.1%, F1≥0.9 = 46%). 10곡 예비 실측은 F1 88.1%.
+  - 지배적 오류 = **조표 오인식(♭ 과다 → 반음 하향 전조)**. ±2반음 최적 보정 시 평균 **F1 88.3%**(53곡 +0.1 이상 개선, 보정 후 F1<0.6은 13곡).
+  - **전략 결론:** Audiveris(65%) 대비 사전학습 homr가 우세 → 자체 YOLOv8 처음부터 학습이 아니라 **사전학습 homr + 조표 후처리 + 표적 파인튜닝** 경로로 전환.
 
 ## ⏳ 대기 / 검증 필요
 - **고해상도 악보 OMR 검증** — 315.JPG 저해상도(500×777px)로 소프라노 검출 34/52음(65%), 4개 마디 전체 누락. 300 DPI 스캔본으로 재검증 필요.
 
 ## 📋 예정 (우선순위순)
 
-### 🔴 최우선: Plan 1B — YOLOv8 모델 학습
+### 🔴 최우선: OMR 엔진 = 사전학습 homr 채택 경로
 
-> **현재 상태:** Score Understanding Pipeline 파이프라인 코드 완성. YOLOv8 모델 미학습 상태(더미 패스스루). 모델 학습이 완료되어야 실제 OMR 정확도가 나온다.
+> **전략 전환(2026-07-07):** 645곡 기준선 실측 결과, 사전학습 homr가 F1 83.2%(조표 보정 시 88.3%)로 Audiveris(65%)를 크게 앞섬. 자체 YOLOv8을 처음부터 학습(구 Plan 1B)하는 대신, **사전학습 homr를 `OmrPort` 어댑터로 채택 → 조표 후처리 → 표적 파인튜닝** 순으로 정확도를 끌어올린다.
 
-**목표 정확도:** 소프라노 검출률 ≥ 90%, 피치 정확도 ≥ 95%, 마디 전체 누락 0
+**목표 정확도:** 피치 F1 ≥ 95%, 조표 오인식 0, 마디 전체 누락 0
 
-**Plan 1B 태스크 (브레인스토밍 → 설계 → 계획 필요):**
-1. Lilypond 렌더링 스크립트 — `training/scripts/render_scores.py` (MusicXML → 악보 이미지 + 레이블 자동 생성)
-2. YOLO 포맷 레이블 생성 — `training/scripts/generate_labels.py`
-3. YOLOv8 파인튜닝 — DeepScores V2 사전학습 → 찬송가 데이터 파인튜닝
-4. PaddleOCR 한국어 파인튜닝 — 찬송가 가사 GT 데이터
-5. 평가 스크립트 — Audiveris 65% 기준선 대비 측정
+**다음 태스크 (브레인스토밍 → 설계 → 계획 필요):**
+1. `feat/omr-baseline-eval` 정리 → main 머지 (대용량 산출물 gitignore 정책 포함)
+2. **조표 후처리** — ♭ 과다 오인식 → ±반음 전조 자동 보정 로직 (기준선 88.3% 근거)
+3. **homr 어댑터** — 사전학습 homr를 `HomrAdapter(OmrPort)`로 래핑(기존 코드 무수정, 규칙 A7)
+4. 실패 케이스 분석 — hymn040·hymn177 실행 실패 + F1<0.6 저성능 13곡 원인 진단
+5. **표적 파인튜닝** — 찬송가 데이터로 homr 파인튜닝(조표/저성능 마디 집중)
+
+> 구 Plan 1B(YOLOv8 자체 학습, DeepScores V2 사전학습)는 homr 채택으로 **보류**. Score Understanding Pipeline 코드(더미 패스스루)는 유지.
 
 **설계 문서:** [DL-OMR 설계](specs/2026-06-19-dl-omr-design.md)
 
@@ -67,6 +75,14 @@
 ---
 
 ## 진행 이력 (날짜별)
+
+### 2026-07-07 (homr 사전학습 OMR 기준선 실측 → 전략 전환)
+- **GT 정답지 구축** — `nwc2xml`로 새찬송가 645곡 정답 MusicXML 생성. 001 XML 품질 버그 12종 수정(M7 수직/정렬 복원, 베이스 A♭3·D♭ 내림표 보정, Voice2 fill rest 제거 등) — `7014c3a`~`a06dc0c`.
+- **평가 스크립트** — `training/scripts/eval_baseline.py`(bag-of-notes P/R/F1 + 성부별 SER). 10곡 예비 실측 F1 88.1% — `2283697`.
+- **전곡 645 실측** — `f5d7696`. 실행 성공 643/645(실패 hymn040·hymn177), 평균 피치 **F1 83.2%**(중앙값 89.1%, F1≥0.9 = 46%).
+  - 지배적 오류 = **조표 오인식(♭ 과다 → 반음 하향 전조)**. ±2반음 최적 보정 시 평균 **F1 88.3%**(53곡 +0.1 이상 개선, 보정 후 F1<0.6은 13곡뿐). 산출물: `eval_homr645.json`, `shift_analysis.json`.
+- **전략 전환** — Audiveris(65%) 대비 사전학습 homr 우세 확인 → 구 Plan 1B(YOLOv8 자체 학습) 보류, **사전학습 homr 어댑터 + 조표 후처리 + 표적 파인튜닝** 경로로 확정.
+- 상태: 브랜치 `feat/omr-baseline-eval` main 미머지. `score_images/`·`homr_full/` 등 대용량 산출물 gitignore 정책 정리 필요.
 
 ### 2026-06-16
 - 프로젝트 **브레인스토밍 → 설계 확정**: 제품 정의, 1/2단계 로드맵, 트랙B(오프라인 OCR 학습), 기술 타당성(가사는 OMR 분리, 모음"우" 우회) 결정.

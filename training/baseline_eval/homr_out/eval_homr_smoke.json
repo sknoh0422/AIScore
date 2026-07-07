@@ -1,0 +1,22 @@
+{
+  "tag": "homr_smoke",
+  "n_scores": 1,
+  "avg_bag_precision": 0.9848,
+  "avg_bag_recall": 0.9559,
+  "avg_bag_f1": 0.9701,
+  "avg_ser_treble": 0.2941,
+  "avg_ser_bass": 0.0294,
+  "results": [
+    {
+      "pred": "hymn001_Normal.musicxml",
+      "gt": "새찬송가_001 만복의근원하나님.xml",
+      "gt_notes": 136,
+      "pred_notes": 132,
+      "bag_precision": 0.9848,
+      "bag_recall": 0.9559,
+      "bag_f1": 0.9701,
+      "ser_treble": 0.2941,
+      "ser_bass": 0.0294
+    }
+  ]
+}
