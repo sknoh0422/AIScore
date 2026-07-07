@@ -12,7 +12,7 @@ from app.core.score_meta import extract_meta
 from app.storage.store import store
 from app.orchestration.job import Job, JobStatus
 from app.orchestration.orchestrator import Stage1Orchestrator
-from app.stages.omr.audiveris_adapter import AudiverisAdapter
+from app.stages.omr.homr_adapter import HomrAdapter
 from app.stages.parsing.music21_parser import Music21Parser
 from app.stages.svs.vowel_synth_adapter import VowelSynthAdapter
 from app.stages.mixing.mixer import Mixer
@@ -24,7 +24,7 @@ router = APIRouter()
 
 def _run(job_id: str, image_path: Path, work_dir: Path) -> None:
     orch = Stage1Orchestrator(
-        AudiverisAdapter(work_dir=work_dir / "omr"),
+        HomrAdapter(work_dir=work_dir),
         Music21Parser(), VowelSynthAdapter(), Mixer())
     orch.run(job_id, image_path, work_dir, on_update=store.save)
 
