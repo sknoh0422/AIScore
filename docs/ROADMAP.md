@@ -65,10 +65,11 @@
 1. `feat/omr-baseline-eval` 정리 → main 머지 (대용량 산출물 gitignore 정책 포함)
 2. ✅ **조표 판정 + GT 교정** — 완료(검증 baseline 88.0%). GT 오류 50곡 이조 교정, homr 오류 44곡 식별.
 3. ✅ **homr 어댑터** — 사전학습 homr를 `HomrAdapter(OmrPort)`로 래핑, 파이프라인 OMR 엔진 Audiveris→homr **최소 스위치** 완료(`feat/homr-adapter`). subprocess 통합, 파서 "Piano" 폴백 + 다중 Voice offset 정렬 버그 수정. 단위 100 passed, E2E 4성부 생성 실측. Audiveris 자산은 유지(스위치만).
-   - **Stage C (다음)** — eval에 리듬(duration·마디합) + 성부배정(S/A/T/B F1) 지표 추가 → homr 4부 정확도 실측. GT·homr 둘 다 `Music21Parser`로 SATB 파싱 후 성부별 대조(파서가 offset 정렬 4성부 제공).
-     - **⚠️ 필수: GT는 `score_images/xml/분리_keyfix/`(644곡, 사람 정정 조 반영)를 사용** — 원본 `분리/` 아님. 조 정정된 곡에서 원본 GT를 쓰면 GT 조 오류로 homr가 부당하게 깎임(83.2%→88.0% 때의 문제 재발). `eval_baseline.py`의 `GT_XML_DIR`를 `분리_keyfix`로. 근거: `key_adjudication.json`.
-     - caveat 검증: chordify+화음분리 그룹화가 GT 4파트와 homr 2보표에서 동일 S/A/T/B 규약으로 정렬되는지 곡별 확인(S↔S 비교 유효성).
-   - **Stage D** — 조표 후처리 / 리듬 정규화 / 찬송가 구조 프라이어(측정 델타로 채택).
+   - ✅ **Stage C — homr 4부 정확도 실측 완료** (`training/scripts/eval_satb.py`, GT=`분리_keyfix`, 642곡 채점·실패 0). 실제 `Music21Parser`로 GT·homr 둘 다 SATB 파싱 후 성부별 대조.
+     - **결과(성부별 피치 F1 / 리듬 SER):** S 0.804/0.345 · A **0.800**/0.372 · T 0.826/0.332 · B 0.856/**0.411**(n=623). 산출물 `eval_satb_homr_full.json`.
+     - **핵심:** 성부배정 F1 **80~86%** — 전체 피치가방 88%보다 낮음(88%는 낙관적 상한 확증). 안쪽 성부(A/S)가 약함. 리듬 SER **33~41%**(그간 미측정) — **리듬이 성부배정보다 큰 병목**(특히 Bass는 피치 최고인데 리듬 최악).
+     - 남은 검증: 성부 정합 caveat(GT 4파트↔homr 2보표 S/A/T/B 규약 일치), Bass 누락 ~19곡 원인.
+   - **Stage D (다음)** — Stage C 근거상 **리듬 정규화 우선**(마디합=박자표, 양자화, 동음리듬 프라이어) > 성부배정 개선 > 조표 후처리. 각 측정 델타로 채택.
 4. **표적 파인튜닝(Stage E)** — homr 오류 44곡의 지배 패턴 = **조표 플랫 과소인식**(Ab→Eb 등, 플랫 1~2개 누락). 플랫 조표(4~5개) 인식 강화가 핵심 타깃. + L4 교정 에디터 플라이휠.
 5. 실패 케이스 분석 — hymn040·hymn177 실행 실패 원인 진단(homr 크래시는 `OmrError`→`failed`로 표면화됨)
 
