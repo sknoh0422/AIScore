@@ -1,0 +1,630 @@
+{
+  "tag": "homr_sample",
+  "n_scored": 20,
+  "n_failed": 0,
+  "per_voice": {
+    "soprano": {
+      "n": 20,
+      "avg_pitch_f1": 0.8344,
+      "avg_ser_pd": 0.3008
+    },
+    "alto": {
+      "n": 20,
+      "avg_pitch_f1": 0.8476,
+      "avg_ser_pd": 0.3295
+    },
+    "tenor": {
+      "n": 20,
+      "avg_pitch_f1": 0.8886,
+      "avg_ser_pd": 0.2565
+    },
+    "bass": {
+      "n": 20,
+      "avg_pitch_f1": 0.9139,
+      "avg_ser_pd": 0.2199
+    }
+  },
+  "results": [
+    {
+      "pred": "hymn001_Normal.musicxml",
+      "gt": "새찬송가_001 만복의근원하나님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9444,
+          "ser_pd": 0.2632,
+          "gt_notes": 38,
+          "pred_notes": 38
+        },
+        "alto": {
+          "pitch_f1": 0.8611,
+          "ser_pd": 0.3421,
+          "gt_notes": 38,
+          "pred_notes": 38
+        },
+        "tenor": {
+          "pitch_f1": 0.9706,
+          "ser_pd": 0.1842,
+          "gt_notes": 38,
+          "pred_notes": 36
+        },
+        "bass": {
+          "pitch_f1": 1.0,
+          "ser_pd": 0.1351,
+          "gt_notes": 37,
+          "pred_notes": 36
+        }
+      }
+    },
+    {
+      "pred": "hymn002_Normal.musicxml",
+      "gt": "새찬송가_002 찬양성부성자성령.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.975,
+          "ser_pd": 0.093,
+          "gt_notes": 43,
+          "pred_notes": 41
+        },
+        "alto": {
+          "pitch_f1": 0.975,
+          "ser_pd": 0.093,
+          "gt_notes": 43,
+          "pred_notes": 41
+        },
+        "tenor": {
+          "pitch_f1": 0.9737,
+          "ser_pd": 0.0976,
+          "gt_notes": 41,
+          "pred_notes": 39
+        },
+        "bass": {
+          "pitch_f1": 0.9737,
+          "ser_pd": 0.1,
+          "gt_notes": 40,
+          "pred_notes": 39
+        }
+      }
+    },
+    {
+      "pred": "hymn003_Normal.musicxml",
+      "gt": "새찬송가_003 성부성자와성령.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 1.0,
+          "ser_pd": 0.0426,
+          "gt_notes": 47,
+          "pred_notes": 45
+        },
+        "alto": {
+          "pitch_f1": 1.0,
+          "ser_pd": 0.0426,
+          "gt_notes": 47,
+          "pred_notes": 45
+        },
+        "tenor": {
+          "pitch_f1": 0.9756,
+          "ser_pd": 0.0638,
+          "gt_notes": 47,
+          "pred_notes": 45
+        },
+        "bass": {
+          "pitch_f1": 0.9512,
+          "ser_pd": 0.0652,
+          "gt_notes": 46,
+          "pred_notes": 45
+        }
+      }
+    },
+    {
+      "pred": "hymn004_Normal.musicxml",
+      "gt": "새찬송가_004 성부성자와성령.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8571,
+          "ser_pd": 0.2128,
+          "gt_notes": 47,
+          "pred_notes": 47
+        },
+        "alto": {
+          "pitch_f1": 0.9524,
+          "ser_pd": 0.1064,
+          "gt_notes": 47,
+          "pred_notes": 47
+        },
+        "tenor": {
+          "pitch_f1": 0.962,
+          "ser_pd": 0.1111,
+          "gt_notes": 45,
+          "pred_notes": 44
+        },
+        "bass": {
+          "pitch_f1": 0.975,
+          "ser_pd": 0.0444,
+          "gt_notes": 45,
+          "pred_notes": 44
+        }
+      }
+    },
+    {
+      "pred": "hymn005_Normal.musicxml",
+      "gt": "새찬송가_005 이천지간만물들아.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9737,
+          "ser_pd": 0.119,
+          "gt_notes": 42,
+          "pred_notes": 38
+        },
+        "alto": {
+          "pitch_f1": 0.9737,
+          "ser_pd": 0.119,
+          "gt_notes": 42,
+          "pred_notes": 38
+        },
+        "tenor": {
+          "pitch_f1": 0.9706,
+          "ser_pd": 0.1316,
+          "gt_notes": 38,
+          "pred_notes": 34
+        },
+        "bass": {
+          "pitch_f1": 1.0,
+          "ser_pd": 0.0811,
+          "gt_notes": 37,
+          "pred_notes": 34
+        }
+      }
+    },
+    {
+      "pred": "hymn006_Normal.musicxml",
+      "gt": "새찬송가_006 목소리높여서.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.6353,
+          "ser_pd": 0.5,
+          "gt_notes": 46,
+          "pred_notes": 43
+        },
+        "alto": {
+          "pitch_f1": 0.5882,
+          "ser_pd": 0.5,
+          "gt_notes": 46,
+          "pred_notes": 43
+        },
+        "tenor": {
+          "pitch_f1": 0.814,
+          "ser_pd": 0.2826,
+          "gt_notes": 46,
+          "pred_notes": 44
+        },
+        "bass": {
+          "pitch_f1": 0.8372,
+          "ser_pd": 0.2444,
+          "gt_notes": 45,
+          "pred_notes": 44
+        }
+      }
+    },
+    {
+      "pred": "hymn007_Normal.musicxml",
+      "gt": "새찬송가_007+성부성자성령.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9505,
+          "ser_pd": 0.2449,
+          "gt_notes": 49,
+          "pred_notes": 53
+        },
+        "alto": {
+          "pitch_f1": 0.7778,
+          "ser_pd": 0.8684,
+          "gt_notes": 38,
+          "pred_notes": 53
+        },
+        "tenor": {
+          "pitch_f1": 0.8642,
+          "ser_pd": 0.5278,
+          "gt_notes": 36,
+          "pred_notes": 46
+        },
+        "bass": {
+          "pitch_f1": 0.8916,
+          "ser_pd": 0.3947,
+          "gt_notes": 38,
+          "pred_notes": 46
+        }
+      }
+    },
+    {
+      "pred": "hymn008_Normal.musicxml",
+      "gt": "새찬송가_008 거룩거룩거룩전능하신주님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9057,
+          "ser_pd": 0.549,
+          "gt_notes": 51,
+          "pred_notes": 61
+        },
+        "alto": {
+          "pitch_f1": 0.8649,
+          "ser_pd": 0.4286,
+          "gt_notes": 56,
+          "pred_notes": 61
+        },
+        "tenor": {
+          "pitch_f1": 0.9153,
+          "ser_pd": 0.3729,
+          "gt_notes": 59,
+          "pred_notes": 61
+        },
+        "bass": {
+          "pitch_f1": 0.8727,
+          "ser_pd": 0.56,
+          "gt_notes": 50,
+          "pred_notes": 61
+        }
+      }
+    },
+    {
+      "pred": "hymn009_Normal.musicxml",
+      "gt": "새찬송가_009 하늘에가득찬영광의하나님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8588,
+          "ser_pd": 0.3735,
+          "gt_notes": 83,
+          "pred_notes": 90
+        },
+        "alto": {
+          "pitch_f1": 0.8757,
+          "ser_pd": 0.3659,
+          "gt_notes": 82,
+          "pred_notes": 90
+        },
+        "tenor": {
+          "pitch_f1": 0.7746,
+          "ser_pd": 0.4699,
+          "gt_notes": 83,
+          "pred_notes": 92
+        },
+        "bass": {
+          "pitch_f1": 0.8605,
+          "ser_pd": 0.358,
+          "gt_notes": 81,
+          "pred_notes": 92
+        }
+      }
+    },
+    {
+      "pred": "hymn010_Normal.musicxml",
+      "gt": "새찬송가_010 전능왕오셔서.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.7727,
+          "ser_pd": 0.4419,
+          "gt_notes": 43,
+          "pred_notes": 47
+        },
+        "alto": {
+          "pitch_f1": 0.9318,
+          "ser_pd": 0.3256,
+          "gt_notes": 43,
+          "pred_notes": 47
+        },
+        "tenor": {
+          "pitch_f1": 0.907,
+          "ser_pd": 0.2558,
+          "gt_notes": 43,
+          "pred_notes": 47
+        },
+        "bass": {
+          "pitch_f1": 0.8837,
+          "ser_pd": 0.2619,
+          "gt_notes": 42,
+          "pred_notes": 47
+        }
+      }
+    },
+    {
+      "pred": "hymn011_Normal.musicxml",
+      "gt": "새찬송가_011+홀로한분하나님께.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8679,
+          "ser_pd": 0.1509,
+          "gt_notes": 53,
+          "pred_notes": 53
+        },
+        "alto": {
+          "pitch_f1": 0.8762,
+          "ser_pd": 0.1346,
+          "gt_notes": 52,
+          "pred_notes": 53
+        },
+        "tenor": {
+          "pitch_f1": 0.9159,
+          "ser_pd": 0.2308,
+          "gt_notes": 52,
+          "pred_notes": 55
+        },
+        "bass": {
+          "pitch_f1": 0.9189,
+          "ser_pd": 0.1429,
+          "gt_notes": 56,
+          "pred_notes": 55
+        }
+      }
+    },
+    {
+      "pred": "hymn012_Normal.musicxml",
+      "gt": "새찬송가_012 다함께주를경배하세.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.7656,
+          "ser_pd": 0.4091,
+          "gt_notes": 66,
+          "pred_notes": 66
+        },
+        "alto": {
+          "pitch_f1": 0.7778,
+          "ser_pd": 0.4219,
+          "gt_notes": 64,
+          "pred_notes": 66
+        },
+        "tenor": {
+          "pitch_f1": 0.7559,
+          "ser_pd": 0.4394,
+          "gt_notes": 66,
+          "pred_notes": 67
+        },
+        "bass": {
+          "pitch_f1": 0.7344,
+          "ser_pd": 0.4091,
+          "gt_notes": 66,
+          "pred_notes": 67
+        }
+      }
+    },
+    {
+      "pred": "hymn013_Normal.musicxml",
+      "gt": "새찬송가_013+영원한하늘나라.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.7669,
+          "ser_pd": 0.2794,
+          "gt_notes": 68,
+          "pred_notes": 70
+        },
+        "alto": {
+          "pitch_f1": 0.7559,
+          "ser_pd": 0.5323,
+          "gt_notes": 62,
+          "pred_notes": 70
+        },
+        "tenor": {
+          "pitch_f1": 0.784,
+          "ser_pd": 0.2812,
+          "gt_notes": 64,
+          "pred_notes": 66
+        },
+        "bass": {
+          "pitch_f1": 0.813,
+          "ser_pd": 0.3548,
+          "gt_notes": 62,
+          "pred_notes": 66
+        }
+      }
+    },
+    {
+      "pred": "hymn014_Normal.musicxml",
+      "gt": "새찬송가_014 우리주하나님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8364,
+          "ser_pd": 0.2712,
+          "gt_notes": 59,
+          "pred_notes": 56
+        },
+        "alto": {
+          "pitch_f1": 0.9057,
+          "ser_pd": 0.3818,
+          "gt_notes": 55,
+          "pred_notes": 56
+        },
+        "tenor": {
+          "pitch_f1": 0.8868,
+          "ser_pd": 0.2586,
+          "gt_notes": 58,
+          "pred_notes": 52
+        },
+        "bass": {
+          "pitch_f1": 0.9038,
+          "ser_pd": 0.3273,
+          "gt_notes": 55,
+          "pred_notes": 52
+        }
+      }
+    },
+    {
+      "pred": "hymn015_Normal.musicxml",
+      "gt": "새찬송가_015 하나님의 크신사랑.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8227,
+          "ser_pd": 0.2361,
+          "gt_notes": 72,
+          "pred_notes": 71
+        },
+        "alto": {
+          "pitch_f1": 0.8905,
+          "ser_pd": 0.2647,
+          "gt_notes": 68,
+          "pred_notes": 71
+        },
+        "tenor": {
+          "pitch_f1": 0.9524,
+          "ser_pd": 0.0769,
+          "gt_notes": 65,
+          "pred_notes": 63
+        },
+        "bass": {
+          "pitch_f1": 0.992,
+          "ser_pd": 0.0476,
+          "gt_notes": 63,
+          "pred_notes": 63
+        }
+      }
+    },
+    {
+      "pred": "hymn016_Normal.musicxml",
+      "gt": "새찬송가_016+은혜로신하나님우리하나님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.7818,
+          "ser_pd": 0.4151,
+          "gt_notes": 53,
+          "pred_notes": 58
+        },
+        "alto": {
+          "pitch_f1": 0.7679,
+          "ser_pd": 0.3636,
+          "gt_notes": 55,
+          "pred_notes": 58
+        },
+        "tenor": {
+          "pitch_f1": 0.8929,
+          "ser_pd": 0.1607,
+          "gt_notes": 56,
+          "pred_notes": 57
+        },
+        "bass": {
+          "pitch_f1": 0.9444,
+          "ser_pd": 0.2308,
+          "gt_notes": 52,
+          "pred_notes": 57
+        }
+      }
+    },
+    {
+      "pred": "hymn017_Normal.musicxml",
+      "gt": "새찬송가_017+사랑의하나님.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.2281,
+          "ser_pd": 0.8727,
+          "gt_notes": 55,
+          "pred_notes": 60
+        },
+        "alto": {
+          "pitch_f1": 0.3684,
+          "ser_pd": 0.8,
+          "gt_notes": 55,
+          "pred_notes": 60
+        },
+        "tenor": {
+          "pitch_f1": 0.7059,
+          "ser_pd": 0.5088,
+          "gt_notes": 57,
+          "pred_notes": 63
+        },
+        "bass": {
+          "pitch_f1": 0.9106,
+          "ser_pd": 0.1639,
+          "gt_notes": 61,
+          "pred_notes": 63
+        }
+      }
+    },
+    {
+      "pred": "hymn018_Normal.musicxml",
+      "gt": "새찬송가_018+성도들아찬양하자.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9706,
+          "ser_pd": 0.0896,
+          "gt_notes": 67,
+          "pred_notes": 69
+        },
+        "alto": {
+          "pitch_f1": 0.9635,
+          "ser_pd": 0.0735,
+          "gt_notes": 68,
+          "pred_notes": 69
+        },
+        "tenor": {
+          "pitch_f1": 0.9197,
+          "ser_pd": 0.2273,
+          "gt_notes": 66,
+          "pred_notes": 71
+        },
+        "bass": {
+          "pitch_f1": 0.9065,
+          "ser_pd": 0.1912,
+          "gt_notes": 68,
+          "pred_notes": 71
+        }
+      }
+    },
+    {
+      "pred": "hymn019_Normal.musicxml",
+      "gt": "새찬송가_019 찬송하는소리있어.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.9291,
+          "ser_pd": 0.1449,
+          "gt_notes": 69,
+          "pred_notes": 66
+        },
+        "alto": {
+          "pitch_f1": 0.9764,
+          "ser_pd": 0.1014,
+          "gt_notes": 69,
+          "pred_notes": 66
+        },
+        "tenor": {
+          "pitch_f1": 0.9606,
+          "ser_pd": 0.1594,
+          "gt_notes": 69,
+          "pred_notes": 66
+        },
+        "bass": {
+          "pitch_f1": 0.9683,
+          "ser_pd": 0.1194,
+          "gt_notes": 67,
+          "pred_notes": 66
+        }
+      }
+    },
+    {
+      "pred": "hymn020_Normal.musicxml",
+      "gt": "새찬송가_020 큰영광중에계신주.xml",
+      "voices": {
+        "soprano": {
+          "pitch_f1": 0.8451,
+          "ser_pd": 0.3077,
+          "gt_notes": 39,
+          "pred_notes": 36
+        },
+        "alto": {
+          "pitch_f1": 0.8696,
+          "ser_pd": 0.3243,
+          "gt_notes": 37,
+          "pred_notes": 36
+        },
+        "tenor": {
+          "pitch_f1": 0.8696,
+          "ser_pd": 0.2895,
+          "gt_notes": 38,
+          "pred_notes": 35
+        },
+        "bass": {
+          "pitch_f1": 0.9412,
+          "ser_pd": 0.1667,
+          "gt_notes": 36,
+          "pred_notes": 35
+        }
+      }
+    }
+  ],
+  "failures": []
+}
