@@ -88,7 +88,11 @@ class Music21Parser:
         for part in parts:
             if vocal_only and not _is_vocal_part(part):
                 continue
-            elements = list(part.recurse().notesAndRests)
+            # 보표 내 다중 Voice(예: homr의 지나가는 음)를 offset 기준으로 병합해
+            # 성부 간 타이밍 정렬을 보장한다. recurse()는 Voice를 문서순으로 연접해
+            # 2차 Voice 음이 뒤에 붙어 라인 길이가 어긋나므로, chordify로 각 시점의
+            # 동시 음을 하나의 화음으로 모아 단일 offset-정렬 타임라인을 만든다.
+            elements = list(part.chordify().recurse().notesAndRests)
             has_chord = any(hasattr(e, "pitches") and len(e.pitches) >= 2
                             for e in elements)
             if has_chord:
@@ -98,11 +102,15 @@ class Music21Parser:
                 if lower:
                     lines.append(lower)
             else:
+                # 단선율: chordify 결과는 1-피치 Chord일 수 있으므로 pitches로 추출.
                 ns: list[Note] = []
                 for el in elements:
                     dur = float(el.duration.quarterLength)
                     if isinstance(el, m21note.Rest):
                         ns.append(Note(pitch=None, quarter_length=dur))
+                    elif hasattr(el, "pitches") and el.pitches:
+                        ns.append(Note(pitch=el.pitches[0].nameWithOctave,
+                                       quarter_length=dur))
                     elif isinstance(el, m21note.Note):
                         ns.append(Note(pitch=el.pitch.nameWithOctave,
                                        quarter_length=dur))
