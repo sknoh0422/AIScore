@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-07-07 (7차)
+**최종 갱신:** 2026-07-08 (8차)
 
 ---
 
@@ -64,9 +64,11 @@
 **다음 태스크 (브레인스토밍 → 설계 → 계획 필요):**
 1. `feat/omr-baseline-eval` 정리 → main 머지 (대용량 산출물 gitignore 정책 포함)
 2. ✅ **조표 판정 + GT 교정** — 완료(검증 baseline 88.0%). GT 오류 50곡 이조 교정, homr 오류 44곡 식별.
-3. **homr 어댑터** — 사전학습 homr를 `HomrAdapter(OmrPort)`로 래핑(기존 코드 무수정, 규칙 A7)
-4. **표적 파인튜닝** — homr 오류 44곡의 지배 패턴 = **조표 플랫 과소인식**(Ab→Eb 등, 플랫 1~2개 누락). 플랫 조표(4~5개) 인식 강화가 핵심 타깃.
-5. 실패 케이스 분석 — hymn040·hymn177 실행 실패 원인 진단
+3. ✅ **homr 어댑터** — 사전학습 homr를 `HomrAdapter(OmrPort)`로 래핑, 파이프라인 OMR 엔진 Audiveris→homr **최소 스위치** 완료(`feat/homr-adapter`). subprocess 통합, 파서 "Piano" 폴백 + 다중 Voice offset 정렬 버그 수정. 단위 100 passed, E2E 4성부 생성 실측. Audiveris 자산은 유지(스위치만).
+   - **Stage C (다음)** — eval에 리듬(duration·마디합) + 성부배정(S/A/T/B F1) 지표 추가 → homr 4부 정확도 실측. 파서 다성부 정렬 메커니즘 검증 최우선.
+   - **Stage D** — 조표 후처리 / 리듬 정규화 / 찬송가 구조 프라이어(측정 델타로 채택).
+4. **표적 파인튜닝(Stage E)** — homr 오류 44곡의 지배 패턴 = **조표 플랫 과소인식**(Ab→Eb 등, 플랫 1~2개 누락). 플랫 조표(4~5개) 인식 강화가 핵심 타깃. + L4 교정 에디터 플라이휠.
+5. 실패 케이스 분석 — hymn040·hymn177 실행 실패 원인 진단(homr 크래시는 `OmrError`→`failed`로 표면화됨)
 
 > 구 Plan 1B(YOLOv8 자체 학습, DeepScores V2 사전학습)는 homr 채택으로 **보류**. Score Understanding Pipeline 코드(더미 패스스루)는 유지.
 
@@ -81,6 +83,14 @@
 ---
 
 ## 진행 이력 (날짜별)
+
+### 2026-07-08 (homr 어댑터 전환 — 파이프라인 OMR 엔진 교체)
+- **의사결정** — 전체목표(높이+리듬 4부 악보) 기준 발전가능성으로 homr 확정. 88%는 피치 멀티셋(bag)이라 4부 분리·리듬은 미보증임을 명문화. Audiveris 65%는 딴 잣대(1곡 소프라노 검출)라 재측정 불필요·드롭. Audiveris 자산은 삭제 않고 스위치만.
+- **설계·계획** — `docs/specs/2026-07-07-homr-adapter-design.md`(스펙), `docs/plans/2026-07-07-homr-adapter.md`(6태스크 TDD).
+- **구현(`feat/homr-adapter`, 서브에이전트 주도 TDD)** — `config.homr_bin()` → `HomrAdapter(OmrPort)`(subprocess homr CLI, 실패=`OmrError`→`failed`) → 포트 계약 테스트 → 파서 "Piano" 폴백(필터 0줄시 해제) → 배선 교체(오케스트레이터 무수정). music21가 homr 2-staff를 2 PartStaff로 파싱 실측 반영.
+- **버그 수정** — 파서 다중 Voice가 offset순 아닌 문서순 연접 → S/A(40박)>T/B(36박) 동기화 붕괴. `part.chordify()`로 offset 병합, 전 성부 37박 정렬. 성부 길이 정렬 회귀 테스트 추가.
+- **검증** — 단위 **100 passed**, E2E 실측 hymn001 → soprano=38/alto=38/tenor=34/bass=34(정렬 후 길이 동등). 최종 전수 리뷰 GO.
+- **다음** — Stage C(리듬·성부 지표로 4부 정확도 실측) → Stage D 후처리 → Stage E 파인튜닝.
 
 ### 2026-07-07 (조표 판정 + GT 교정 → 검증 baseline 88.0%)
 - **조표 불일치 102곡** 웹 판정 도구 제작(`training/scripts/key_adjudicator/`, 데이터/셸/로직/스타일 분리) → 사람이 실제 악보 이미지와 대조해 homr vs GT 중 실제 조를 판정.
