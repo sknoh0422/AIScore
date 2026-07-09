@@ -37,13 +37,13 @@
   - 구현: 전처리 → 레이아웃 분석 → YOLOv8 OMR 엔진 → 메타 추출 → 가사 OCR(PaddleOCR) → MusicXML 조립 → `ScoreUnderstandingAdapter(OmrPort)`
   - 현재 상태: YOLOv8 모델 미학습(더미 패스스루). 다음 단계 = 모델 학습(Plan 1B)
 - **MD 파일 체계 재구성** — `docs/superpowers/` 제거, `docs/plans/` · `docs/specs/` · `raw/project_start.md` 정착
-- **homr 사전학습 OMR 기준선 실측 (645곡)** — 브랜치 `feat/omr-baseline-eval`(main 미머지), `f5d7696`
+- **homr 사전학습 OMR 기준선 실측 (645곡)** — main 머지 완료(`f5d7696`, 브랜치 `feat/omr-baseline-eval` 정리됨)
   - GT: `nwc2xml`로 새찬송가 645곡 정답 MusicXML 생성(001 XML 품질 버그 12종 수정 포함).
   - 평가: `training/scripts/eval_baseline.py` — bag-of-notes P/R/F1 + 성부별 SER.
   - 결과: 실행 성공 **643/645**(실패 hymn040·hymn177), 평균 피치 **F1 83.2%**(중앙값 89.1%, F1≥0.9 = 46%). 10곡 예비 실측은 F1 88.1%.
   - 지배적 오류 = **조표 오인식(♭ 과다 → 반음 하향 전조)**. ±2반음 최적 보정 시 평균 **F1 88.3%**(오라클 상한).
   - **전략 결론:** Audiveris(65%) 대비 사전학습 homr가 우세 → 자체 YOLOv8 처음부터 학습이 아니라 **사전학습 homr + 조표 후처리 + 표적 파인튜닝** 경로로 전환.
-- **조표 판정 + GT(정답지) 교정 → 검증 baseline 88.0%** — `feat/omr-baseline-eval`
+- **조표 판정 + GT(정답지) 교정 → 검증 baseline 88.0%** — main 머지 완료
   - 조표 불일치 102곡을 웹 판정 도구(`training/scripts/key_adjudicator/`)로 사람이 이미지 대조 판정.
   - **발견: 102곡 중 53곡은 homr가 옳고 정답지(GT)가 틀림**(NWC→XML 변환 시 오조). → 83.2%는 GT 오류로 homr를 부당하게 깎은 값.
   - GT 오류 곡을 실제 조로 이조(移調) — 단, **이조가 F1을 실제 개선할 때만 채택**(겉보기 조표차 8곡은 원본 유지, 손상 0곡).
@@ -62,7 +62,7 @@
 **목표 정확도:** 피치 F1 ≥ 95%, 조표 오인식 0, 마디 전체 누락 0
 
 **다음 태스크 (브레인스토밍 → 설계 → 계획 필요):**
-1. `feat/omr-baseline-eval` 정리 → main 머지 (대용량 산출물 gitignore 정책 포함)
+1. ✅ `feat/omr-baseline-eval` 정리 → main 머지 완료 (대용량 산출물 gitignore 정책 반영, 브랜치 삭제됨)
 2. ✅ **조표 판정 + GT 교정** — 완료(검증 baseline 88.0%). GT 오류 50곡 이조 교정, homr 오류 44곡 식별.
 3. ✅ **homr 어댑터** — 사전학습 homr를 `HomrAdapter(OmrPort)`로 래핑, 파이프라인 OMR 엔진 Audiveris→homr **최소 스위치** 완료(`feat/homr-adapter`). subprocess 통합, 파서 "Piano" 폴백 + 다중 Voice offset 정렬 버그 수정. 단위 100 passed, E2E 4성부 생성 실측. Audiveris 자산은 유지(스위치만).
    - ✅ **Stage C — homr 4부 정확도 실측 완료** (`training/scripts/eval_satb.py`, GT=`분리_keyfix`, 642곡 채점·실패 0). 실제 `Music21Parser`로 GT·homr 둘 다 SATB 파싱 후 성부별 대조.
@@ -129,7 +129,7 @@
 - **전곡 645 실측** — `f5d7696`. 실행 성공 643/645(실패 hymn040·hymn177), 평균 피치 **F1 83.2%**(중앙값 89.1%, F1≥0.9 = 46%).
   - 지배적 오류 = **조표 오인식(♭ 과다 → 반음 하향 전조)**. ±2반음 최적 보정 시 평균 **F1 88.3%**(53곡 +0.1 이상 개선, 보정 후 F1<0.6은 13곡뿐). 산출물: `eval_homr645.json`, `shift_analysis.json`.
 - **전략 전환** — Audiveris(65%) 대비 사전학습 homr 우세 확인 → 구 Plan 1B(YOLOv8 자체 학습) 보류, **사전학습 homr 어댑터 + 조표 후처리 + 표적 파인튜닝** 경로로 확정.
-- 상태: 브랜치 `feat/omr-baseline-eval` main 미머지. `score_images/`·`homr_full/` 등 대용량 산출물 gitignore 정책 정리 필요.
+- 상태: main 머지 완료(브랜치 `feat/omr-baseline-eval` 정리됨). `score_images/`·`homr_full/` 등 대용량 산출물은 gitignore 정책 반영.
 
 ### 2026-06-16
 - 프로젝트 **브레인스토밍 → 설계 확정**: 제품 정의, 1/2단계 로드맵, 트랙B(오프라인 OCR 학습), 기술 타당성(가사는 OMR 분리, 모음"우" 우회) 결정.
