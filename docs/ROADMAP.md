@@ -3,7 +3,7 @@
 > **새 세션 진입점.** 이 프로젝트를 이어서 작업할 때 이 파일 하나만 열면 현재 상태와 다음 작업을 알 수 있다.
 > 규약은 [CLAUDE.md](../CLAUDE.md), 전체 설계는 [설계 문서](specs/2026-06-16-aiscore-design.md).
 
-**최종 갱신:** 2026-07-08 (8차)
+**최종 갱신:** 2026-07-09 (9차)
 
 ---
 
@@ -78,6 +78,8 @@
      - **확정 결론:** 12%p 인식손실 = 해상도 아님 = **homr의 새찬송가 조판·표기 인식 한계**. → **③ 파인튜닝(Stage E)이 현재 파일로 가능한 유일한 실질 레버.** 특히 조표 플랫 과소인식 44곡 systematic 오류가 타깃.
    - **Stage D (리듬)** — 리듬 정규화(마디합=박자표, 양자화, 동음리듬 프라이어). 단 ② 재렌더 후 리듬 SER도 재측정 필요(저해상도가 리듬 인식도 눌렀을 수 있음).
 4. **표적 파인튜닝(Stage E)** — homr 오류 44곡의 지배 패턴 = **조표 플랫 과소인식**(Ab→Eb 등, 플랫 1~2개 누락). 플랫 조표(4~5개) 인식 강화가 핵심 타깃. + L4 교정 에디터 플라이휠.
+   - ✅ **설계 스펙 확정**(`docs/specs/2026-07-08-homr-finetune-design.md`, 2026-07-09 코드검증 리뷰). 결정 ①MuseScore 렌더(진짜 게이트=NWC 전이 F1) ②지표=SATB 성부F1 ③1차 `--fine`(lift 헤드만) 확정.
+   - ✅ **헤드 귀속 게이트 실행**(`head_attribution.py`, 642곡). 발음피치=pitch헤드+lift헤드 분해. **플랫 과소인식 46곡 = lift 헤드 지배 확정**(staff_F1 0.903 유지, sound_F1 0.809, gap 0.094) → `--fine` 정조준 맞음. **단 `--fine` 이론 상한=pitch헤드 0.903** → 목표 0.99는 `--fine`만으론 불가, **전체 파인튜닝 필수**. 저F1 집단은 pitch헤드가 병목(0.903→0.794).
 5. 실패 케이스 분석 — hymn040·hymn177 실행 실패 원인 진단(homr 크래시는 `OmrError`→`failed`로 표면화됨)
 
 > 구 Plan 1B(YOLOv8 자체 학습, DeepScores V2 사전학습)는 homr 채택으로 **보류**. Score Understanding Pipeline 코드(더미 패스스루)는 유지.
@@ -93,6 +95,19 @@
 ---
 
 ## 진행 이력 (날짜별)
+
+### 2026-07-09 (Stage E 설계 확정 + 헤드 귀속 게이트)
+- **파인튜닝 설계 스펙 리뷰·확정** — `../homr` 실코드 대조로 3결정 검증. `--fine`=`freeze_encoder+freeze_decoder+unfreeze_lift_decoder`(train.py:199-201, lr 1e-5) 확인. **결정 ③ 근거 정정:** 조표=rhythm헤드(동결)·lift=음표별 임시표(학습)로 서로 다른 헤드지만, 발음 피치=`pitch헤드+lift헤드`(music_xml_generator.py:626-629, 조표 토큰은 발음 미변경)이므로 우리 F1엔 `--fine`이 맞는 헤드. 결정 ①은 진짜 게이트를 NWC 전이 F1으로 상향, NWC-네이티브 학습을 Q2 이전 폴백 등록.
+- **★ 무비용 사전 게이트 신설·실행**(`training/scripts/head_attribution.py`, 642곡) — 발음피치를 staff{step,oct}(pitch헤드)·sound{step,oct,alter}(pitch+lift)로 분해해 오류를 헤드에 귀속.
+  - **플랫 과소인식 46곡 = lift 헤드 지배 확정**(staff_F1 0.903 유지·sound_F1 0.809·gap 0.094). 예 hymn373 staff 0.843/sound 0.393. → `--fine` 정조준 검증.
+  - **`--fine` 이론 상한 = pitch헤드 F1 0.903.** 목표 0.99는 `--fine` 단독 불가 → **전체 파인튜닝 필수**(저F1 하위25%는 pitch헤드 0.903→0.794가 병목). 스펙 §2.2 기록.
+- **Task 2 착수 — 파이프라인 빌딩블록 전부 검증(hymn001 수직 슬라이스):**
+  - MuseScore 4.7.3 mac: **`-j` job 모드만 작동**(`-o`는 exit 40 실패). `out:[svg,musicxml]` 동시 export 성공. exit 134(크래시)나도 파일 정상 생성 → **파일 존재로 판정**.
+  - `rsvg-convert` 2.62.3 설치(svg→png). homr venv에 **torch-CPU 설치**(토크나이저 의존).
+  - **토크나이저는 MuseScore-export musicxml에만 동작**(원본 GT는 `Expected clefs` 에러) → 파이프라인=원본GT→MuseScore재export→토큰화. hymn001 라벨 `keySignature_-4`+`note_4 A4 b`(Ab) 정확 = 파인튜닝 lift 타깃 확인.
+- **검증됨:** `convert_xml_and_svg_file`(homr) 재사용 = 토큰화+SVG위치+staff크롭+rsvg png+인덱스라인을 일괄 처리 → convert_saechan은 **얇은 드라이버**면 충분(MuseScore `-j` 배치 렌더 → 함수 호출 → train/heldout 분할).
+- **⛔ 블로커(다음 착수점):** hymn001에서 **SVG 13마디 vs XML 12마디** 불일치 → crop 스킵(인덱스 0줄). 원인 = 우리가 원본 MusicXML을 직접 렌더해 convert_lieder의 **`.mscx` 전처리(`_make_staff_visible`/`_make_tuplet_visible`, 빈 보표 숨김 방지)를 건너뜀**. 정답 경로 = MusicXML→`.mscx` export→가시성 편집→재렌더(convert_lieder `create_formats` 경로). **추측 수정 금지 → 마디 카운트 불일치(픽업/보표수/헤더) systematic-debugging으로 규명 후 convert_saechan에 반영.**
+- **다음:** convert_saechan.py 본구현(위 블로커 해결 = `.mscx` 전처리 경로 포함) → 5곡 수직슬라이스로 yield 측정 → 645 배치 → train/heldout 분할 → Task 3~4(번들·평가) → 4090 학습(`--fine` 1차 후 전체 파인튜닝 예약).
 
 ### 2026-07-08 (homr 어댑터 전환 — 파이프라인 OMR 엔진 교체)
 - **의사결정** — 전체목표(높이+리듬 4부 악보) 기준 발전가능성으로 homr 확정. 88%는 피치 멀티셋(bag)이라 4부 분리·리듬은 미보증임을 명문화. Audiveris 65%는 딴 잣대(1곡 소프라노 검출)라 재측정 불필요·드롭. Audiveris 자산은 삭제 않고 스위치만.
